@@ -1,3 +1,15 @@
+app_login:
+    path: /login
+    controller: App\Controller\SecurityController::login
+
+app_logout:
+    path: /logout
+    controller: App\Controller\SecurityController::logout
+
+app_home_redirect:
+    path: /
+    controller: App\Controller\SecurityController::homeRedirect
+
 controllers:
     resource:
         path: ../src/Controller/
