@@ -31,6 +31,13 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column]
     private ?string $password = null;
 
+    /**
+     * Date de la dernière consultation du menu de notifications : tout
+     * événement plus récent que cette date est considéré comme non lu.
+     */
+    #[ORM\Column(nullable: true)]
+    private ?\DateTimeImmutable $derniereConsultationNotifications = null;
+
     public function getId(): ?int
     {
         return $this->id;
@@ -99,5 +106,17 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function eraseCredentials(): void
     {
         // @deprecated, to be removed when upgrading to Symfony 8
+    }
+
+    public function getDerniereConsultationNotifications(): ?\DateTimeImmutable
+    {
+        return $this->derniereConsultationNotifications;
+    }
+
+    public function setDerniereConsultationNotifications(?\DateTimeImmutable $date): static
+    {
+        $this->derniereConsultationNotifications = $date;
+
+        return $this;
     }
 }

@@ -4,6 +4,8 @@
 # Put parameters here that don't need to change on each machine where the app is deployed
 # https://symfony.com/doc/current/best_practices.html#use-parameters-for-application-configuration
 parameters:
+    balances_directory: '%kernel.project_dir%/var/balances'
+    logos_directory: '%kernel.project_dir%/public/uploads/logos'
 
 services:
     # default configuration for services in *this* file
@@ -22,3 +24,18 @@ services:
 
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones
+    App\Service\BalanceImportService:
+        arguments:
+            $balancesDirectory: '%balances_directory%'
+
+    App\Service\ReportGenerationService:
+        arguments:
+            $balancesDirectory: '%balances_directory%'
+
+    App\Controller\SettingsController:
+        arguments:
+            $logosDirectory: '%logos_directory%'
+
+    App\Service\PdfService:
+        arguments:
+            $logosDirectory: '%logos_directory%'

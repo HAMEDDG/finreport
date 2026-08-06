@@ -1,0 +1,205 @@
+{% extends 'admin/index.html.twig' %}
+
+{% block page_styles %}
+    <style>
+        .toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.2rem;
+            gap: 1rem;
+        }
+
+        .search-input {
+            padding: 0.55rem 0.8rem;
+            border: 1px solid var(--paper-line);
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 0.88rem;
+            width: 280px;
+        }
+
+        .search-input:focus { outline: none; border-color: var(--gold); }
+
+        .data-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+
+        .data-table th {
+            text-align: left;
+            padding: 0.7rem 0.9rem;
+            color: var(--text-muted);
+            font-weight: 600;
+            font-size: 0.76rem;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            border-bottom: 1px solid var(--paper-line);
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .data-table td { padding: 0.75rem 0.9rem; border-bottom: 1px solid var(--paper-line); }
+
+        .badge { display: inline-block; padding: 0.2rem 0.6rem; border-radius: 20px; font-size: 0.74rem; font-weight: 600; }
+        .badge-success { background: #E4F4EA; color: #1E7E44; }
+
+        .icon-btn {
+            background: none;
+            border: 1px solid var(--paper-line);
+            border-radius: 6px;
+            padding: 0.35rem 0.55rem;
+            cursor: pointer;
+            font-size: 0.85rem;
+            color: var(--text-primary);
+            text-decoration: none;
+        }
+
+        .icon-btn:hover { background: var(--paper); }
+        .icon-btn.danger { color: #B3261E; }
+
+        .table-actions { display: flex; gap: 0.5rem; }
+
+        .pagination { display: flex; justify-content: flex-end; gap: 0.4rem; margin-top: 1.2rem; }
+        .pagination button {
+            border: 1px solid var(--paper-line);
+            background: #fff;
+            border-radius: 6px;
+            padding: 0.35rem 0.7rem;
+            font-size: 0.82rem;
+            cursor: pointer;
+        }
+        .pagination button.active { background: var(--ink-800); color: #fff; border-color: var(--ink-800); }
+
+        .toast-stack {
+            position: fixed;
+            top: 80px;
+            right: 20px;
+            z-index: 200;
+            display: flex;
+            flex-direction: column;
+            gap: 0.6rem;
+        }
+
+        .toast {
+            background: var(--ink-800);
+            color: #fff;
+            padding: 0.8rem 1.1rem;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            max-width: 360px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.18);
+            border-left: 3px solid var(--gold);
+            animation: toastIn 0.25s ease-out;
+        }
+
+        .toast.toast-error { border-left-color: #E06A63; }
+
+        @keyframes toastIn {
+            from { opacity: 0; transform: translateX(20px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+    <div class="page-header">
+        <h1>Rapports financiers</h1>
+        <p>Historique des rapports générés automatiquement</p>
+    </div>
+
+    <div class="content-card" style="display: block; padding: 1.5rem;">
+        <div class="toolbar">
+            <input type="text" class="search-input" id="searchInput" placeholder="Rechercher une entreprise...">
+        </div>
+
+        {% if reports is empty %}
+            <p class="placeholder-text">Aucun rapport généré pour le moment. Importez une balance et cliquez sur "Générer le rapport".</p>
+        {% else %}
+            <table class="data-table" id="reportsTable">
+                <thead>
+                    <tr>
+                        <th data-sort="date">Date</th>
+                        <th data-sort="entreprise">Entreprise</th>
+                        <th data-sort="exercice">Exercice</th>
+                        <th>Utilisateur</th>
+                        <th>Type</th>
+                        <th>Statut</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for report in reports %}
+                        <tr>
+                            <td data-value="{{ report.dateGeneration|date('U') }}">{{ report.dateGeneration|date('d/m/Y H:i') }}</td>
+                            <td>{{ report.entreprise }}</td>
+                            <td>{{ report.exercice }}</td>
+                            <td>{{ report.utilisateur.email }}</td>
+                            <td>{{ report.type }}</td>
+                            <td><span class="badge badge-success">Disponible</span></td>
+                            <td>
+                                <div class="table-actions">
+                                    <a href="{{ path('app_admin_report_show', {id: report.id}) }}" class="icon-btn" title="Voir">👁</a>
+                                    <a href="{{ path('app_admin_report_pdf', {id: report.id}) }}" class="icon-btn" title="Télécharger PDF">⬇</a>
+                                    <form method="post" action="{{ path('app_admin_report_delete', {id: report.id}) }}" style="display:inline;" onsubmit="return confirm('Supprimer ce rapport ?');">
+                                        <input type="hidden" name="_token" value="{{ csrf_token('delete-report-' ~ report.id) }}">
+                                        <button class="icon-btn danger" type="submit" title="Supprimer">🗑</button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% endif %}
+    </div>
+
+    <div class="toast-stack" id="toastStack">
+        {% for message in app.flashes('success') %}
+            <div class="toast">{{ message }}</div>
+        {% endfor %}
+        {% for message in app.flashes('error') %}
+            <div class="toast toast-error">{{ message }}</div>
+        {% endfor %}
+    </div>
+{% endblock %}
+
+{% block page_scripts %}
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            var searchInput = document.getElementById('searchInput');
+            var table = document.getElementById('reportsTable');
+            if (!searchInput || !table) return;
+
+            searchInput.addEventListener('input', function () {
+                var term = searchInput.value.toLowerCase();
+                table.querySelectorAll('tbody tr').forEach(function (row) {
+                    row.style.display = row.textContent.toLowerCase().includes(term) ? '' : 'none';
+                });
+            });
+
+            table.querySelectorAll('th[data-sort]').forEach(function (th, index) {
+                th.addEventListener('click', function () {
+                    var rows = Array.from(table.querySelectorAll('tbody tr'));
+                    var asc = th.dataset.dir !== 'asc';
+                    th.dataset.dir = asc ? 'asc' : 'desc';
+
+                    rows.sort(function (a, b) {
+                        var cellA = a.children[index];
+                        var cellB = b.children[index];
+                        var valA = cellA.dataset.value || cellA.textContent.trim();
+                        var valB = cellB.dataset.value || cellB.textContent.trim();
+                        return asc ? valA.localeCompare(valB, undefined, {numeric: true}) : valB.localeCompare(valA, undefined, {numeric: true});
+                    });
+
+                    rows.forEach(function (row) { table.querySelector('tbody').appendChild(row); });
+                });
+            });
+
+            setTimeout(function () {
+                document.querySelectorAll('#toastStack .toast').forEach(function (t) {
+                    t.style.transition = 'opacity 0.4s ease';
+                    t.style.opacity = '0';
+                    setTimeout(function () { t.remove(); }, 400);
+                });
+            }, 6000);
+        });
+    </script>
+{% endblock %}

@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Rapport financier — {{ report.entreprise }}</title>
+    <style>
+        @page {
+            margin: 28px 32px;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            font-family: 'DejaVu Sans', sans-serif;
+            font-size: 10px;
+            color: #1C2333;
+            margin: 0;
+        }
+
+        table.header {
+            width: 100%;
+            border-collapse: collapse;
+            border-bottom: 2px solid #0F1E3D;
+            padding-bottom: 10px;
+            margin-bottom: 14px;
+        }
+
+        table.header .brand {
+            font-size: 15px;
+            font-weight: bold;
+            color: #0F1E3D;
+        }
+
+        table.header .brand img {
+            max-height: 34px;
+            max-width: 160px;
+            vertical-align: middle;
+        }
+
+        table.header .meta {
+            text-align: right;
+            font-size: 9px;
+            color: #6B7280;
+        }
+
+        table.header .meta strong {
+            color: #1C2333;
+            display: block;
+            font-size: 10px;
+        }
+
+        .title-block {
+            text-align: center;
+            margin-bottom: 16px;
+        }
+
+        .title-block h1 {
+            font-size: 14px;
+            margin: 0 0 3px;
+            color: #0F1E3D;
+        }
+
+        .title-block p {
+            margin: 2px 0;
+            color: #6B7280;
+            font-size: 9px;
+        }
+
+        .section-title {
+            font-size: 11px;
+            font-weight: bold;
+            color: #0F1E3D;
+            margin: 16px 0 8px;
+            padding-bottom: 4px;
+            border-bottom: 1px solid #E4E6EB;
+        }
+
+        table.lines {
+            width: 100%;
+            table-layout: fixed;
+            border-collapse: collapse;
+        }
+
+        table.lines col.libelle { width: 34%; }
+        table.lines col.montant { width: 16%; }
+
+        table.lines th {
+            text-align: left;
+            font-size: 9px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #8A6E1B;
+            padding: 0 6px 6px;
+        }
+
+        table.lines th.montant-col {
+            text-align: right;
+        }
+
+        table.lines td {
+            padding: 4px 6px;
+            border-bottom: 1px dashed #E4E6EB;
+            font-size: 9px;
+            overflow: hidden;
+        }
+
+        table.lines td.montant {
+            text-align: right;
+            white-space: nowrap;
+        }
+
+        table.lines td.total {
+            font-weight: bold;
+            border-top: 1px solid #1C2333;
+            border-bottom: 2px solid #1C2333;
+        }
+
+        .footer-note {
+            margin-top: 18px;
+            font-size: 8px;
+            color: #6B7280;
+        }
+    </style>
+</head>
+<body>
+    <table class="header">
+        <tr>
+            <td class="brand">
+                {% if logoBase64 %}
+                    <img src="{{ logoBase64 }}" alt="Logo">
+                {% else %}
+                    ◆ FinReport
+                {% endif %}
+            </td>
+            <td class="meta">
+                <strong>{{ report.entreprise }}</strong>
+                Exercice {{ report.exercice }}<br>
+                Généré le {{ report.dateGeneration|date('d/m/Y à H:i') }}
+            </td>
+        </tr>
+    </table>
+
+    <div class="title-block">
+        <h1>ETATS FINANCIERS PROVISOIRES</h1>
+        <p>AU 31/12/{{ report.exercice }}</p>
+        <p>(EN {{ devise }})</p>
+    </div>
+
+    <div class="section-title">BILAN</div>
+    <table class="lines">
+        <colgroup>
+            <col class="libelle"><col class="montant"><col class="libelle"><col class="montant">
+        </colgroup>
+        <tr>
+            <th>Actif</th>
+            <th class="montant-col">Montant</th>
+            <th>Passif</th>
+            <th class="montant-col">Montant</th>
+        </tr>
+        {% for ligne in lignesBilan %}
+            <tr>
+                <td{{ ligne.gaucheTotal ? ' class="total"' }}>{{ ligne.gaucheLibelle }}</td>
+                <td class="montant{{ ligne.gaucheTotal ? ' total' }}">{{ ligne.gaucheMontant is not null ? ligne.gaucheMontant|number_format(0, ',', ' ') }}</td>
+                <td{{ ligne.droiteTotal ? ' class="total"' }}>{{ ligne.droiteLibelle }}</td>
+                <td class="montant{{ ligne.droiteTotal ? ' total' }}">{{ ligne.droiteMontant is not null ? ligne.droiteMontant|number_format(0, ',', ' ') }}</td>
+            </tr>
+        {% endfor %}
+    </table>
+
+    <div class="section-title">COMPTE DE RÉSULTAT</div>
+    <table class="lines">
+        <colgroup>
+            <col class="libelle"><col class="montant"><col class="libelle"><col class="montant">
+        </colgroup>
+        <tr>
+            <th>Charges</th>
+            <th class="montant-col">Montant</th>
+            <th>Produits</th>
+            <th class="montant-col">Montant</th>
+        </tr>
+        {% for ligne in lignesResultat %}
+            <tr>
+                <td{{ ligne.gaucheTotal ? ' class="total"' }}>{{ ligne.gaucheLibelle }}</td>
+                <td class="montant{{ ligne.gaucheTotal ? ' total' }}">{{ ligne.gaucheMontant is not null ? ligne.gaucheMontant|number_format(0, ',', ' ') }}</td>
+                <td{{ ligne.droiteTotal ? ' class="total"' }}>{{ ligne.droiteLibelle }}</td>
+                <td class="montant{{ ligne.droiteTotal ? ' total' }}">{{ ligne.droiteMontant is not null ? ligne.droiteMontant|number_format(0, ',', ' ') }}</td>
+            </tr>
+        {% endfor %}
+    </table>
+
+    <p class="footer-note">
+        Document généré automatiquement par FinReport à partir de la balance comptable importée. Rapport à valeur provisoire.
+    </p>
+</body>
+</html>

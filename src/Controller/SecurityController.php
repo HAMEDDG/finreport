@@ -34,12 +34,10 @@ class SecurityController extends AbstractController
     #[Route(path: '/', name: 'app_home_redirect')]
     public function homeRedirect(): Response
     {
-        if ($this->isGranted('ROLE_ADMIN')) {
-            return $this->redirectToRoute('app_admin_dashboard');
-        }
+       
 
         if ($this->isGranted('ROLE_USER')) {
-            return $this->redirectToRoute('app_dashboard');
+            return $this->redirectToRoute('app_admin');
         }
 
         return $this->redirectToRoute('app_login');

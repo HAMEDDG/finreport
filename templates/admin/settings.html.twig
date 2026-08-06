@@ -1,0 +1,238 @@
+{% extends 'admin/index.html.twig' %}
+
+{% block page_styles %}
+    <style>
+        .settings-card {
+            background: #fff;
+            border: 1px solid var(--paper-line);
+            border-radius: 12px;
+            padding: 2rem;
+            margin-bottom: 1.5rem;
+            max-width: 640px;
+        }
+
+        .settings-card h2 {
+            font-family: 'Source Serif 4', serif;
+            font-weight: 500;
+            font-size: 1.15rem;
+            margin: 0 0 0.3rem;
+        }
+
+        .settings-card .card-subtitle {
+            margin: 0 0 1.4rem;
+            color: var(--text-muted);
+            font-size: 0.85rem;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem 1.4rem;
+            margin-bottom: 1.2rem;
+        }
+
+        .form-grid .full-width { grid-column: 1 / -1; }
+
+        .form-field { margin-bottom: 1rem; }
+
+        .form-field label {
+            display: block;
+            font-size: 0.82rem;
+            font-weight: 500;
+            margin-bottom: 0.35rem;
+            color: var(--text-primary);
+        }
+
+        .form-field .help-text {
+            display: block;
+            font-size: 0.76rem;
+            color: var(--text-muted);
+            margin-top: 0.3rem;
+        }
+
+        .form-field input,
+        .form-field select {
+            width: 100%;
+            padding: 0.6rem 0.75rem;
+            border: 1px solid var(--paper-line);
+            border-radius: 7px;
+            font-family: inherit;
+            font-size: 0.9rem;
+        }
+
+        .form-field input:focus,
+        .form-field select:focus {
+            outline: none;
+            border-color: var(--gold);
+            box-shadow: 0 0 0 3px rgba(201, 162, 39, 0.15);
+        }
+
+        /* form_errors() de Symfony rend une simple <ul><li> sans classe : on la cible
+           directement pour que les erreurs de validation soient visibles. */
+        .settings-card ul { color: #B3261E; font-size: 0.82rem; margin: 0.3rem 0 0.7rem; padding-left: 1.2rem; }
+        .settings-card ul li { margin-bottom: 0.15rem; }
+
+        .current-logo {
+            display: flex;
+            align-items: center;
+            gap: 0.8rem;
+            margin-bottom: 1rem;
+            padding: 0.7rem 0.9rem;
+            background: var(--paper);
+            border-radius: 8px;
+        }
+
+        .current-logo img {
+            max-height: 40px;
+            max-width: 140px;
+        }
+
+        .current-logo span {
+            font-size: 0.82rem;
+            color: var(--text-muted);
+        }
+
+        .btn-primary {
+            background: var(--ink-800);
+            color: #fff;
+            border: none;
+            padding: 0.6rem 1.2rem;
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 0.88rem;
+            font-weight: 500;
+            cursor: pointer;
+        }
+
+        .btn-primary:hover { background: var(--ink-900); }
+
+        .toast-stack {
+            position: fixed;
+            top: 80px;
+            right: 20px;
+            z-index: 200;
+            display: flex;
+            flex-direction: column;
+            gap: 0.6rem;
+        }
+
+        .toast {
+            background: var(--ink-800);
+            color: #fff;
+            padding: 0.8rem 1.1rem;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            max-width: 360px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.18);
+            border-left: 3px solid var(--gold);
+            animation: toastIn 0.25s ease-out;
+        }
+
+        .toast.toast-error { border-left-color: #E06A63; }
+
+        @keyframes toastIn {
+            from { opacity: 0; transform: translateX(20px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+    <div class="page-header">
+        <h1>Paramètres</h1>
+        <p>Configuration générale de l'application</p>
+    </div>
+
+    <div class="settings-card">
+        <h2>🔒 Sécurité</h2>
+        <p class="card-subtitle">Modifier votre mot de passe de connexion.</p>
+
+        {{ form_start(passwordForm, {'action': path('app_admin_settings_password'), 'method': 'post'}) }}
+            <div class="form-field">
+                {{ form_label(passwordForm.currentPassword) }}
+                {{ form_widget(passwordForm.currentPassword) }}
+                {{ form_errors(passwordForm.currentPassword) }}
+            </div>
+            <div class="form-grid">
+                <div class="form-field">
+                    {{ form_label(passwordForm.newPassword.first) }}
+                    {{ form_widget(passwordForm.newPassword.first) }}
+                </div>
+                <div class="form-field">
+                    {{ form_label(passwordForm.newPassword.second) }}
+                    {{ form_widget(passwordForm.newPassword.second) }}
+                </div>
+            </div>
+            {{ form_errors(passwordForm.newPassword) }}
+
+            <button type="submit" class="btn-primary">Modifier le mot de passe</button>
+        {{ form_end(passwordForm) }}
+    </div>
+
+    {% if appSettingsForm is not null %}
+        <div class="settings-card">
+            <h2>🏢 Entreprise &amp; comptabilité</h2>
+            <p class="card-subtitle">Ces paramètres s'appliquent à l'ensemble de l'application.</p>
+
+            {{ form_start(appSettingsForm, {'action': path('app_admin_settings_app'), 'method': 'post', 'attr': {'enctype': 'multipart/form-data'}}) }}
+                <div class="form-field">
+                    {{ form_label(appSettingsForm.nomEntreprise) }}
+                    {{ form_widget(appSettingsForm.nomEntreprise) }}
+                    {{ form_errors(appSettingsForm.nomEntreprise) }}
+                </div>
+
+                {% if appSettingsForm.vars.value.logoEntreprise %}
+                    <div class="current-logo">
+                        <img src="{{ asset('uploads/logos/' ~ appSettingsForm.vars.value.logoEntreprise) }}" alt="Logo actuel">
+                        <span>Logo actuel — sélectionnez un fichier ci-dessous pour le remplacer.</span>
+                    </div>
+                {% endif %}
+
+                <div class="form-field">
+                    {{ form_label(appSettingsForm.logo) }}
+                    {{ form_widget(appSettingsForm.logo) }}
+                    {{ form_errors(appSettingsForm.logo) }}
+                </div>
+
+                <div class="form-grid">
+                    <div class="form-field">
+                        {{ form_label(appSettingsForm.devise) }}
+                        {{ form_widget(appSettingsForm.devise) }}
+                        {{ form_errors(appSettingsForm.devise) }}
+                    </div>
+                    <div class="form-field">
+                        {{ form_label(appSettingsForm.toleranceEquilibre) }}
+                        {{ form_widget(appSettingsForm.toleranceEquilibre) }}
+                        <span class="help-text">{{ appSettingsForm.toleranceEquilibre.vars.help }}</span>
+                        {{ form_errors(appSettingsForm.toleranceEquilibre) }}
+                    </div>
+                </div>
+
+                <button type="submit" class="btn-primary">Enregistrer les paramètres</button>
+            {{ form_end(appSettingsForm) }}
+        </div>
+    {% endif %}
+
+    <div class="toast-stack" id="toastStack">
+        {% for message in app.flashes('success') %}
+            <div class="toast">{{ message }}</div>
+        {% endfor %}
+        {% for message in app.flashes('error') %}
+            <div class="toast toast-error">{{ message }}</div>
+        {% endfor %}
+    </div>
+{% endblock %}
+
+{% block page_scripts %}
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            setTimeout(function () {
+                document.querySelectorAll('#toastStack .toast').forEach(function (t) {
+                    t.style.transition = 'opacity 0.4s ease';
+                    t.style.opacity = '0';
+                    setTimeout(function () { t.remove(); }, 400);
+                });
+            }, 5000);
+        });
+    </script>
+{% endblock %}

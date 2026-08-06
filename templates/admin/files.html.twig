@@ -1,0 +1,418 @@
+{% extends 'admin/index.html.twig' %}
+
+{% block page_styles %}
+    <style>
+        .page-actions-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .upload-card {
+            background: #fff;
+            border: 1px solid var(--paper-line);
+            border-radius: 12px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .upload-card h2 {
+            font-family: 'Source Serif 4', serif;
+            font-weight: 500;
+            font-size: 1.2rem;
+            margin: 0 0 1.4rem;
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+        }
+
+        .dropzone {
+            /* Un border-style:dashed classique associé à border-radius fait que les
+               tirets s'agglutinent de façon irrégulière dans les coins arrondis.
+               On dessine donc le pointillé en SVG pour un espacement régulier. */
+            /* <label> est "inline" par défaut : sans display:block, l'image de fond
+               ne couvre parfois qu'un fragment de la zone au lieu de tout le bloc. */
+            display: block;
+            border: none;
+            border-radius: 10px;
+            padding: 2.5rem 1.5rem;
+            text-align: center;
+            cursor: pointer;
+            background-repeat: no-repeat;
+            background-size: 100% 100%;
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' width='100%25' height='100%25'%3e%3crect width='100%25' height='100%25' fill='none' rx='10' ry='10' stroke='%23E4E6EB' stroke-width='2' stroke-dasharray='8%2c8' stroke-linecap='round'/%3e%3c/svg%3e");
+            transition: background-color 0.15s ease;
+            margin-bottom: 1.4rem;
+        }
+
+        .dropzone:hover, .dropzone.dragover {
+            background-color: rgba(201, 162, 39, 0.05);
+            background-size: 100% 100%;
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' width='100%25' height='100%25'%3e%3crect width='100%25' height='100%25' fill='none' rx='10' ry='10' stroke='%23C9A227' stroke-width='2' stroke-dasharray='8%2c8' stroke-linecap='round'/%3e%3c/svg%3e");
+        }
+
+        .dropzone .icon { font-size: 1.8rem; margin-bottom: 0.5rem; }
+        .dropzone .main-text { font-weight: 500; margin: 0 0 0.3rem; }
+        .dropzone .sub-text { font-size: 0.8rem; color: var(--text-muted); margin: 0; }
+        .dropzone input[type="file"] { display: none; }
+
+        .file-preview {
+            display: none;
+            background: var(--paper);
+            border-radius: 8px;
+            padding: 0.9rem 1.1rem;
+            margin-bottom: 1.4rem;
+            font-size: 0.85rem;
+        }
+
+        .file-preview.visible { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.4rem 1.5rem; }
+        .file-preview span.label { color: var(--text-muted); }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem 1.4rem;
+            margin-bottom: 1.2rem;
+        }
+
+        .form-grid .full-width { grid-column: 1 / -1; }
+
+        .form-field label {
+            display: block;
+            font-size: 0.82rem;
+            font-weight: 500;
+            margin-bottom: 0.35rem;
+            color: var(--text-primary);
+        }
+
+        .form-field input, .form-field textarea {
+            width: 100%;
+            padding: 0.6rem 0.75rem;
+            border: 1px solid var(--paper-line);
+            border-radius: 7px;
+            font-family: inherit;
+            font-size: 0.9rem;
+        }
+
+        .form-field input:focus, .form-field textarea:focus {
+            outline: none;
+            border-color: var(--gold);
+            box-shadow: 0 0 0 3px rgba(201, 162, 39, 0.15);
+        }
+
+        .form-errors { color: #B3261E; font-size: 0.78rem; margin-top: 0.3rem; }
+
+        /* form_errors() de Symfony rend une simple <ul><li> sans classe : on la cible
+           directement pour que les erreurs de validation soient visibles. */
+        .upload-card ul { color: #B3261E; font-size: 0.82rem; margin: 0.3rem 0 0.7rem; padding-left: 1.2rem; }
+        .upload-card ul li { margin-bottom: 0.15rem; }
+
+        .btn-primary {
+            background: var(--ink-800);
+            color: #fff;
+            border: none;
+            padding: 0.65rem 1.3rem;
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 0.88rem;
+            font-weight: 500;
+            cursor: pointer;
+        }
+
+        .btn-primary:hover { background: var(--ink-900); }
+
+        .progress-bar-shell {
+            display: none;
+            height: 6px;
+            background: var(--paper-line);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 1rem;
+        }
+
+        .progress-bar-shell.visible { display: block; }
+
+        .progress-bar-fill {
+            height: 100%;
+            width: 0%;
+            background: var(--gold);
+            transition: width 0.3s ease;
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+        }
+
+        .data-table th {
+            text-align: left;
+            padding: 0.7rem 0.9rem;
+            color: var(--text-muted);
+            font-weight: 600;
+            font-size: 0.76rem;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            border-bottom: 1px solid var(--paper-line);
+        }
+
+        .data-table td {
+            padding: 0.75rem 0.9rem;
+            border-bottom: 1px solid var(--paper-line);
+            vertical-align: middle;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 0.2rem 0.6rem;
+            border-radius: 20px;
+            font-size: 0.74rem;
+            font-weight: 600;
+        }
+
+        .badge-success { background: #E4F4EA; color: #1E7E44; }
+        .badge-pending { background: #FDF3DC; color: #92660C; }
+        .badge-error { background: #FBEAE9; color: #B3261E; }
+
+        .table-actions { display: flex; gap: 0.5rem; }
+
+        .icon-btn {
+            background: none;
+            border: 1px solid var(--paper-line);
+            border-radius: 6px;
+            padding: 0.35rem 0.55rem;
+            cursor: pointer;
+            font-size: 0.85rem;
+            color: var(--text-primary);
+            text-decoration: none;
+        }
+
+        .icon-btn:hover { background: var(--paper); }
+        .icon-btn.danger { color: #B3261E; }
+        .icon-btn.gold { color: var(--gold-dark, #8A6E1B); border-color: rgba(201,162,39,0.4); }
+
+        .toast-stack {
+            position: fixed;
+            top: 80px;
+            right: 20px;
+            z-index: 200;
+            display: flex;
+            flex-direction: column;
+            gap: 0.6rem;
+        }
+
+        .toast {
+            background: var(--ink-800);
+            color: #fff;
+            padding: 0.8rem 1.1rem;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.18);
+            border-left: 3px solid var(--gold);
+            animation: toastIn 0.25s ease-out;
+        }
+
+        .toast.toast-error { border-left-color: #E06A63; }
+
+        @keyframes toastIn {
+            from { opacity: 0; transform: translateX(20px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+    <div class="page-header">
+        <h1>Importation des balances comptables</h1>
+        <p>Importez une balance comptable afin de générer automatiquement un rapport financier personnalisé.</p>
+    </div>
+
+    <div class="upload-card">
+        <h2>📊 Importer une balance</h2>
+
+        {{ form_start(form, {'attr': {'id': 'balance-form', 'novalidate': 'novalidate'}}) }}
+
+            <label class="dropzone" id="dropzone">
+                <div class="icon">📁</div>
+                <p class="main-text">Glissez votre fichier ici</p>
+                <p class="sub-text">ou cliquez pour sélectionner un fichier — XLSX, XLS, CSV — 20 Mo max</p>
+                {{ form_widget(form.fichier) }}
+            </label>
+            {{ form_errors(form.fichier) }}
+
+            <div class="file-preview" id="filePreview">
+                <div><span class="label">Nom :</span> <span id="pvName"></span></div>
+                <div><span class="label">Taille :</span> <span id="pvSize"></span></div>
+                <div><span class="label">Extension :</span> <span id="pvExt"></span></div>
+                <div><span class="label">Date :</span> <span id="pvDate"></span></div>
+            </div>
+
+            <div class="progress-bar-shell" id="progressShell">
+                <div class="progress-bar-fill" id="progressFill"></div>
+            </div>
+
+            <div class="form-grid" style="margin-top: 1.4rem;">
+                <div class="form-field">
+                    {{ form_label(form.entreprise) }}
+                    {{ form_widget(form.entreprise) }}
+                    {{ form_errors(form.entreprise) }}
+                </div>
+                <div class="form-field">
+                    {{ form_label(form.exercice) }}
+                    {{ form_widget(form.exercice) }}
+                    {{ form_errors(form.exercice) }}
+                </div>
+                <div class="form-field">
+                    {{ form_label(form.dateDebut) }}
+                    {{ form_widget(form.dateDebut) }}
+                    {{ form_errors(form.dateDebut) }}
+                </div>
+                <div class="form-field">
+                    {{ form_label(form.dateFin) }}
+                    {{ form_widget(form.dateFin) }}
+                    {{ form_errors(form.dateFin) }}
+                </div>
+                <div class="form-field full-width">
+                    {{ form_label(form.description) }}
+                    {{ form_widget(form.description) }}
+                    {{ form_errors(form.description) }}
+                </div>
+            </div>
+
+            <button type="submit" class="btn-primary" id="submitBtn">Importer la balance</button>
+
+        {{ form_end(form) }}
+    </div>
+
+    <div class="content-card" style="display: block; padding: 1.5rem;">
+        <h2 style="font-family: 'Source Serif 4', serif; font-weight: 500; font-size: 1.15rem; margin: 0 0 1.1rem; text-align: left;">
+            Historique des importations
+        </h2>
+
+        {% if balances is empty %}
+            <p class="placeholder-text">Aucune balance importée pour le moment.</p>
+        {% else %}
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Entreprise</th>
+                        <th>Fichier</th>
+                        <th>Format</th>
+                        <th>Statut</th>
+                        <th>Utilisateur</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for balance in balances %}
+                        <tr>
+                            <td>{{ balance.dateImportation|date('d/m/Y H:i') }}</td>
+                            <td>{{ balance.entreprise }}</td>
+                            <td>{{ balance.nomFichier }}</td>
+                            <td>{{ balance.extension|upper }}</td>
+                            <td>
+                                {% if balance.statut == 'reussi' %}
+                                    <span class="badge badge-success">Import réussi</span>
+                                {% elseif balance.statut == 'en_attente' %}
+                                    <span class="badge badge-pending">Import en attente</span>
+                                {% else %}
+                                    <span class="badge badge-error">Erreur</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ balance.utilisateur.email }}</td>
+                            <td>
+                                <div class="table-actions">
+                                    <button class="icon-btn" type="button" title="Voir">👁</button>
+
+                                    {% if balance.statut == 'reussi' %}
+                                        <form method="post" action="{{ path('app_admin_report_generate', {id: balance.id}) }}" style="display:inline;">
+                                            <button class="icon-btn gold" type="submit" title="Générer le rapport">📈 Générer</button>
+                                        </form>
+                                    {% endif %}
+
+                                    <form method="post" action="{{ path('app_admin_files_delete', {id: balance.id}) }}" style="display:inline;" onsubmit="return confirm('Supprimer cette balance ?');">
+                                        <input type="hidden" name="_token" value="{{ csrf_token('delete-balance-' ~ balance.id) }}">
+                                        <button class="icon-btn danger" type="submit" title="Supprimer">🗑</button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% endif %}
+    </div>
+
+    <div class="toast-stack" id="toastStack">
+        {% for message in app.flashes('success') %}
+            <div class="toast">{{ message }}</div>
+        {% endfor %}
+        {% for message in app.flashes('error') %}
+            <div class="toast toast-error">{{ message }}</div>
+        {% endfor %}
+    </div>
+{% endblock %}
+
+{% block page_scripts %}
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            var dropzone = document.getElementById('dropzone');
+            var input = dropzone.querySelector('input[type="file"]');
+            var preview = document.getElementById('filePreview');
+            var submitBtn = document.getElementById('submitBtn');
+            var progressShell = document.getElementById('progressShell');
+            var progressFill = document.getElementById('progressFill');
+
+            if (!input) return;
+
+            ['dragover', 'dragleave', 'drop'].forEach(function (evt) {
+                dropzone.addEventListener(evt, function (e) { e.preventDefault(); });
+            });
+
+            dropzone.addEventListener('dragover', function () { dropzone.classList.add('dragover'); });
+            dropzone.addEventListener('dragleave', function () { dropzone.classList.remove('dragover'); });
+            dropzone.addEventListener('drop', function (e) {
+                dropzone.classList.remove('dragover');
+                if (e.dataTransfer.files.length) {
+                    input.files = e.dataTransfer.files;
+                    showPreview(e.dataTransfer.files[0]);
+                }
+            });
+
+            input.addEventListener('change', function () {
+                if (input.files.length) { showPreview(input.files[0]); }
+            });
+
+            function showPreview(file) {
+                document.getElementById('pvName').textContent = file.name;
+                document.getElementById('pvSize').textContent = (file.size / 1024).toFixed(1) + ' Ko';
+                document.getElementById('pvExt').textContent = file.name.split('.').pop().toUpperCase();
+                document.getElementById('pvDate').textContent = new Date().toLocaleString('fr-FR');
+                preview.classList.add('visible');
+            }
+
+            var form = document.getElementById('balance-form');
+            form.addEventListener('submit', function () {
+                progressShell.classList.add('visible');
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'Importation en cours...';
+                var pct = 0;
+                var interval = setInterval(function () {
+                    pct = Math.min(pct + 18, 90);
+                    progressFill.style.width = pct + '%';
+                }, 150);
+            });
+
+            setTimeout(function () {
+                document.querySelectorAll('#toastStack .toast').forEach(function (t) {
+                    t.style.transition = 'opacity 0.4s ease';
+                    t.style.opacity = '0';
+                    setTimeout(function () { t.remove(); }, 400);
+                });
+            }, 4000);
+        });
+    </script>
+{% endblock %}

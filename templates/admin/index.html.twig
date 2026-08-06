@@ -1,0 +1,646 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Espace administrateur — FinReport{% endblock %}
+
+{% block stylesheets %}
+    {{ parent() }}
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,500;8..60,600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --ink-900: #0A1529;
+            --ink-800: #0F1E3D;
+            --paper: #F5F6F8;
+            --page-bg: #EAF2FB;
+            --paper-line: #E4E6EB;
+            --text-primary: #1C2333;
+            --text-muted: #6B7280;
+            --gold: #C9A227;
+            --gold-light: #E4C767;
+        }
+
+        * { box-sizing: border-box; }
+
+        html, body {
+            margin: 0;
+            padding: 0;
+            background: var(--page-bg);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            color: var(--text-primary);
+        }
+
+        .admin-header {
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            height: 64px;
+            background: #fff;
+            border-bottom: 1px solid var(--paper-line);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 1.5rem;
+            z-index: 100;
+        }
+
+        .admin-logo {
+            font-family: 'Source Serif 4', serif;
+            font-weight: 600;
+            font-size: 1.15rem;
+            color: var(--ink-800);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .admin-logo .mark { color: var(--gold); }
+
+        .admin-header-right {
+            display: flex;
+            align-items: center;
+            gap: 1.1rem;
+        }
+
+        .notif-btn {
+            position: relative;
+            background: none;
+            border: none;
+            font-size: 1.15rem;
+            cursor: pointer;
+            padding: 0.4rem;
+            border-radius: 8px;
+            color: var(--text-muted);
+        }
+
+        .notif-btn:hover { background: var(--paper); }
+
+        .notif-count {
+            position: absolute;
+            top: 0px; right: -2px;
+            min-width: 16px;
+            height: 16px;
+            padding: 0 3px;
+            border-radius: 999px;
+            background: #D64545;
+            border: 1.5px solid #fff;
+            color: #fff;
+            font-size: 0.62rem;
+            font-weight: 700;
+            line-height: 16px;
+            text-align: center;
+        }
+
+        .notif-menu { position: relative; }
+
+        .notif-dropdown {
+            position: absolute;
+            top: calc(100% + 8px);
+            right: 0;
+            width: 320px;
+            background: #fff;
+            border: 1px solid var(--paper-line);
+            border-radius: 10px;
+            box-shadow: 0 12px 28px rgba(15, 30, 61, 0.14);
+            padding: 0.5rem;
+            display: none;
+            z-index: 110;
+        }
+
+        .notif-menu.open .notif-dropdown { display: block; }
+
+        .notif-dropdown h3 {
+            font-size: 0.78rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            color: var(--text-muted);
+            margin: 0.3rem 0.5rem 0.5rem;
+        }
+
+        .notif-item {
+            position: relative;
+            display: flex;
+            align-items: flex-start;
+            gap: 0.6rem;
+            padding: 0.55rem 1.2rem 0.55rem 0.5rem;
+            border-radius: 7px;
+            text-decoration: none;
+            color: var(--text-primary);
+        }
+
+        .notif-item:hover { background: var(--paper); }
+
+        .notif-item.is-unread { background: rgba(201, 162, 39, 0.06); }
+
+        .notif-unread-marker {
+            position: absolute;
+            top: 0.9rem; right: 0.6rem;
+            width: 7px; height: 7px;
+            border-radius: 50%;
+            background: var(--gold);
+        }
+
+        .notif-item .notif-icon {
+            width: 26px; height: 26px;
+            border-radius: 50%;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8rem;
+            background: #E8ECF3;
+        }
+
+        .notif-item.is-success .notif-icon { background: #E4F4EA; }
+        .notif-item.is-error .notif-icon { background: #FBEAE9; }
+        .notif-item.is-pending .notif-icon { background: #FDF3DC; }
+
+        .notif-item .notif-text { font-size: 0.83rem; line-height: 1.35; }
+        .notif-item .notif-text strong { font-weight: 600; }
+        .notif-item .notif-time { display: block; font-size: 0.74rem; color: var(--text-muted); margin-top: 0.1rem; }
+
+        .notif-empty { padding: 1rem 0.5rem; text-align: center; font-size: 0.85rem; color: var(--text-muted); }
+
+        .user-menu { position: relative; }
+
+        .user-menu-trigger {
+            display: flex;
+            align-items: center;
+            gap: 0.55rem;
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 0.35rem 0.5rem;
+            border-radius: 9px;
+            font-family: inherit;
+            color: var(--text-primary);
+        }
+
+        .user-menu-trigger:hover { background: var(--paper); }
+
+        .user-avatar {
+            width: 32px; height: 32px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--gold-light), var(--gold));
+            color: var(--ink-900);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 0.85rem;
+            flex-shrink: 0;
+        }
+
+        .user-name { font-size: 0.88rem; font-weight: 500; }
+
+        .user-caret {
+            font-size: 0.65rem;
+            color: var(--text-muted);
+            transition: transform 0.15s ease;
+        }
+
+        .user-menu.open .user-caret { transform: rotate(180deg); }
+
+        .user-dropdown {
+            position: absolute;
+            top: calc(100% + 8px);
+            right: 0;
+            min-width: 190px;
+            background: #fff;
+            border: 1px solid var(--paper-line);
+            border-radius: 10px;
+            box-shadow: 0 12px 28px rgba(15, 30, 61, 0.14);
+            padding: 0.4rem;
+            display: none;
+            z-index: 110;
+        }
+
+        .user-menu.open .user-dropdown { display: block; }
+
+        .user-dropdown a {
+            display: flex;
+            align-items: center;
+            gap: 0.55rem;
+            padding: 0.55rem 0.7rem;
+            border-radius: 7px;
+            font-size: 0.86rem;
+            color: var(--text-primary);
+            text-decoration: none;
+        }
+
+        .user-dropdown a:hover { background: var(--paper); }
+
+        .user-dropdown a.danger { color: #B3261E; }
+
+        .admin-shell {
+            display: flex;
+            padding-top: 64px;
+            min-height: 100vh;
+        }
+
+        .admin-sidebar {
+            position: fixed;
+            top: 64px; bottom: 0; left: 0;
+            width: 236px;
+            background: linear-gradient(180deg, var(--ink-800) 0%, var(--ink-900) 100%);
+            padding: 1.4rem 0.85rem;
+            overflow-y: auto;
+        }
+
+        .sidebar-nav {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 0.2rem;
+        }
+
+        .sidebar-nav a {
+            display: flex;
+            align-items: center;
+            gap: 0.7rem;
+            padding: 0.65rem 0.8rem;
+            border-radius: 8px;
+            color: #C7CCDA;
+            text-decoration: none;
+            font-size: 0.88rem;
+            font-weight: 500;
+            transition: background 0.12s ease, color 0.12s ease;
+        }
+
+        .sidebar-nav a .icon { font-size: 1rem; width: 1.3rem; text-align: center; }
+
+        .sidebar-nav a:hover { background: rgba(255, 255, 255, 0.06); color: #fff; }
+
+        .sidebar-nav a.active {
+            background: rgba(201, 162, 39, 0.16);
+            color: #fff;
+            box-shadow: inset 3px 0 0 var(--gold);
+        }
+
+        .sidebar-divider {
+            height: 1px;
+            background: rgba(255, 255, 255, 0.1);
+            margin: 0.75rem 0.3rem;
+        }
+
+        .admin-content {
+            margin-left: 236px;
+            flex: 1;
+            padding: 2rem 2.25rem 3rem;
+        }
+
+        .page-header { margin-bottom: 1.5rem; }
+
+        .page-header h1 {
+            font-family: 'Source Serif 4', serif;
+            font-weight: 500;
+            font-size: 1.55rem;
+            margin: 0 0 0.3rem;
+            color: var(--ink-800);
+        }
+
+        .page-header p { margin: 0; color: var(--text-muted); font-size: 0.9rem; }
+
+        .content-card {
+            background: #fff;
+            border: 1px solid var(--paper-line);
+            border-radius: 12px;
+            padding: 2.5rem 2rem;
+            min-height: 260px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+        }
+
+        .content-card .placeholder-text { color: var(--text-muted); font-size: 0.95rem; }
+
+        .stat-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.75rem;
+        }
+
+        .stat-tile {
+            background: #fff;
+            border: 1px solid var(--paper-line);
+            border-radius: 12px;
+            padding: 1.4rem 1.5rem;
+        }
+
+        .stat-tile .stat-value {
+            font-family: 'Source Serif 4', serif;
+            font-size: 1.8rem;
+            font-weight: 600;
+            color: var(--ink-800);
+            line-height: 1.1;
+        }
+
+        .stat-tile.warning .stat-value { color: #B3261E; }
+
+        .stat-tile .stat-label {
+            margin-top: 0.35rem;
+            font-size: 0.82rem;
+            color: var(--text-muted);
+        }
+
+        .dashboard-columns {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.25rem;
+        }
+
+        .panel {
+            background: #fff;
+            border: 1px solid var(--paper-line);
+            border-radius: 12px;
+            padding: 1.5rem;
+        }
+
+        .panel h2 {
+            font-family: 'Source Serif 4', serif;
+            font-weight: 500;
+            font-size: 1.05rem;
+            margin: 0 0 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .panel h2 a {
+            font-family: 'Inter', sans-serif;
+            font-size: 0.78rem;
+            font-weight: 500;
+            color: var(--gold-dark, #8A6E1B);
+            text-decoration: none;
+        }
+
+        .panel h2 a:hover { text-decoration: underline; }
+
+        .mini-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+
+        .mini-table td {
+            padding: 0.6rem 0;
+            border-bottom: 1px solid var(--paper-line);
+            vertical-align: middle;
+        }
+
+        .mini-table tr:last-child td { border-bottom: none; }
+
+        .mini-table .cell-title { font-weight: 500; }
+        .mini-table .cell-muted { color: var(--text-muted); font-size: 0.78rem; }
+
+        .badge { display: inline-block; padding: 0.2rem 0.6rem; border-radius: 20px; font-size: 0.72rem; font-weight: 600; }
+        .badge-success { background: #E4F4EA; color: #1E7E44; }
+        .badge-pending { background: #FDF3DC; color: #92660C; }
+        .badge-error { background: #FBEAE9; color: #B3261E; }
+
+        .panel .empty-text { color: var(--text-muted); font-size: 0.85rem; padding: 0.5rem 0; }
+
+        @media (max-width: 900px) {
+            .dashboard-columns { grid-template-columns: 1fr; }
+        }
+
+        @media (max-width: 900px) {
+            .admin-sidebar { width: 76px; padding: 1.2rem 0.5rem; }
+            .sidebar-nav a span.label { display: none; }
+            .sidebar-nav a { justify-content: center; }
+            .admin-content { margin-left: 76px; }
+            .user-name { display: none; }
+        }
+    </style>
+    {% block page_styles %}{% endblock %}
+{% endblock %}
+
+{% block body %}
+    <header class="admin-header">
+        <div class="admin-logo">
+            <span class="mark">◆</span> FinReport
+        </div>
+        <div class="admin-header-right">
+            {% set activite = activite_recente(6) %}
+            {% set nonLues = notifications_non_lues_compte() %}
+            <div class="notif-menu" id="notifMenu" data-mark-read-url="{{ path('app_admin_notifications_read') }}" data-mark-read-token="{{ csrf_token('notifications-marquer-lu') }}">
+                <button class="notif-btn" type="button" id="notifBtn" aria-haspopup="true" aria-expanded="false" aria-label="Notifications">
+                    🔔
+                    {% if nonLues > 0 %}
+                        <span class="notif-count" id="notifCount">{{ nonLues > 9 ? '9+' : nonLues }}</span>
+                    {% endif %}
+                </button>
+                <div class="notif-dropdown">
+                    <h3>Activité récente</h3>
+                    {% if activite is empty %}
+                        <p class="notif-empty">Aucune activité pour le moment.</p>
+                    {% else %}
+                        {% for item in activite %}
+                            {% if item.type == 'balance' %}
+                                {% set lien = path('app_admin_files') %}
+                                {% set classe = item.statut == 'reussi' ? 'is-success' : (item.statut == 'erreur' ? 'is-error' : 'is-pending') %}
+                                {% set icone = item.statut == 'reussi' ? '📁' : (item.statut == 'erreur' ? '⚠️' : '⏳') %}
+                                {% set prefixe = item.statut == 'erreur' ? "Échec de l'import de" : 'Balance importée pour' %}
+                            {% else %}
+                                {% set lien = path('app_admin_report_show', {id: item.id}) %}
+                                {% set classe = 'is-success' %}
+                                {% set icone = '📈' %}
+                                {% set prefixe = 'Rapport généré pour' %}
+                            {% endif %}
+                            <a href="{{ lien }}" class="notif-item {{ classe }} {{ item.nonLu ? 'is-unread' }}">
+                                <span class="notif-icon">{{ icone }}</span>
+                                <span class="notif-text">
+                                    {{ prefixe }} <strong>{{ item.titre }}</strong>
+                                    <span class="notif-time">{{ item.date|date('d/m/Y H:i') }}</span>
+                                </span>
+                                {% if item.nonLu %}<span class="notif-unread-marker"></span>{% endif %}
+                            </a>
+                        {% endfor %}
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="user-menu" id="userMenu">
+                <button class="user-menu-trigger" type="button" id="userMenuTrigger" aria-haspopup="true" aria-expanded="false">
+                    <span class="user-avatar">{{ app.user.email|slice(0, 1)|upper }}</span>
+                    <span class="user-name">{{ app.user.email }}</span>
+                    <span class="user-caret">▼</span>
+                </button>
+                <div class="user-dropdown">
+                    <a href="{{ path('app_logout') }}" class="danger">→] Déconnexion</a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <div class="admin-shell">
+        <aside class="admin-sidebar">
+            <ul class="sidebar-nav">
+                <li><a href="{{ path('app_admin') }}" class="{{ active_page == 'dashboard' ? 'active' }}"><span class="icon">🏠</span><span class="label">Tableau de bord</span></a></li>
+                {% if is_granted('ROLE_ADMIN') %}
+                    <li><a href="{{ path('app_admin_users') }}" class="{{ active_page == 'users' ? 'active' }}"><span class="icon">👥</span><span class="label">Utilisateurs</span></a></li>
+                {% endif %}
+                <li><a href="{{ path('app_admin_files') }}" class="{{ active_page == 'files' ? 'active' }}"><span class="icon">📁</span><span class="label">Fichiers</span></a></li>
+                <li><a href="{{ path('app_admin_reports') }}" class="{{ active_page == 'reports' ? 'active' }}"><span class="icon">📊</span><span class="label">Rapports</span></a></li>
+                <li><a href="{{ path('app_admin_settings') }}" class="{{ active_page == 'settings' ? 'active' }}"><span class="icon">⚙️</span><span class="label">Paramètres</span></a></li>
+
+                <li class="sidebar-divider"></li>
+
+                <li><a href="{{ path('app_logout') }}"><span class="icon">→]</span><span class="label">Déconnexion</span></a></li>
+            </ul>
+        </aside>
+
+        <main class="admin-content">
+            {% block content %}
+                <div class="page-header">
+                    <h1>Tableau de bord</h1>
+                    <p>Vue d'ensemble de votre activité</p>
+                </div>
+
+                <div class="stat-grid">
+                    <div class="stat-tile">
+                        <div class="stat-value">{{ totalBalances }}</div>
+                        <div class="stat-label">Balances importées</div>
+                    </div>
+                    <div class="stat-tile">
+                        <div class="stat-value">{{ totalRapports }}</div>
+                        <div class="stat-label">Rapports générés</div>
+                    </div>
+                    {% if totalUtilisateurs is not null %}
+                        <div class="stat-tile">
+                            <div class="stat-value">{{ totalUtilisateurs }}</div>
+                            <div class="stat-label">Utilisateurs</div>
+                        </div>
+                    {% endif %}
+                    <div class="stat-tile {{ balancesEnErreur > 0 ? 'warning' }}">
+                        <div class="stat-value">{{ balancesEnErreur }}</div>
+                        <div class="stat-label">Imports en erreur</div>
+                    </div>
+                </div>
+
+                <div class="dashboard-columns">
+                    <div class="panel">
+                        <h2>
+                            Dernières balances
+                            <a href="{{ path('app_admin_files') }}">Voir tout →</a>
+                        </h2>
+                        {% if balancesRecentes is empty %}
+                            <p class="empty-text">Aucune balance importée pour le moment.</p>
+                        {% else %}
+                            <table class="mini-table">
+                                {% for balance in balancesRecentes %}
+                                    <tr>
+                                        <td>
+                                            <div class="cell-title">{{ balance.entreprise }}</div>
+                                            <div class="cell-muted">{{ balance.dateImportation|date('d/m/Y H:i') }}</div>
+                                        </td>
+                                        <td style="text-align: right;">
+                                            {% if balance.statut == 'reussi' %}
+                                                <span class="badge badge-success">Réussi</span>
+                                            {% elseif balance.statut == 'en_attente' %}
+                                                <span class="badge badge-pending">En attente</span>
+                                            {% else %}
+                                                <span class="badge badge-error">Erreur</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </table>
+                        {% endif %}
+                    </div>
+
+                    <div class="panel">
+                        <h2>
+                            Derniers rapports
+                            <a href="{{ path('app_admin_reports') }}">Voir tout →</a>
+                        </h2>
+                        {% if rapportsRecents is empty %}
+                            <p class="empty-text">Aucun rapport généré pour le moment.</p>
+                        {% else %}
+                            <table class="mini-table">
+                                {% for report in rapportsRecents %}
+                                    <tr>
+                                        <td>
+                                            <div class="cell-title">{{ report.entreprise }}</div>
+                                            <div class="cell-muted">Exercice {{ report.exercice }} — {{ report.dateGeneration|date('d/m/Y H:i') }}</div>
+                                        </td>
+                                        <td style="text-align: right;">
+                                            <a href="{{ path('app_admin_report_show', {id: report.id}) }}" class="badge badge-success" style="text-decoration: none;">Voir</a>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </table>
+                        {% endif %}
+                    </div>
+                </div>
+            {% endblock %}
+        </main>
+    </div>
+{% endblock %}
+
+{% block javascripts %}
+    {{ parent() }}
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            var menu = document.getElementById('userMenu');
+            var trigger = document.getElementById('userMenuTrigger');
+            var notifMenu = document.getElementById('notifMenu');
+            var notifBtn = document.getElementById('notifBtn');
+
+            trigger.addEventListener('click', function (e) {
+                e.stopPropagation();
+                notifMenu.classList.remove('open');
+                notifBtn.setAttribute('aria-expanded', 'false');
+                var isOpen = menu.classList.toggle('open');
+                trigger.setAttribute('aria-expanded', String(isOpen));
+            });
+
+            notifBtn.addEventListener('click', function (e) {
+                e.stopPropagation();
+                menu.classList.remove('open');
+                trigger.setAttribute('aria-expanded', 'false');
+                var isOpen = notifMenu.classList.toggle('open');
+                notifBtn.setAttribute('aria-expanded', String(isOpen));
+
+                if (isOpen) {
+                    marquerNotificationsCommeLues();
+                }
+            });
+
+            function marquerNotificationsCommeLues() {
+                var count = document.getElementById('notifCount');
+                var unreadItems = notifMenu.querySelectorAll('.is-unread');
+                if (!count && unreadItems.length === 0) {
+                    return; // rien à marquer, on évite une requête inutile
+                }
+
+                fetch(notifMenu.dataset.markReadUrl, {
+                    method: 'POST',
+                    headers: { 'X-CSRF-Token': notifMenu.dataset.markReadToken },
+                }).then(function (response) {
+                    if (!response.ok) { return; }
+                    if (count) { count.remove(); }
+                    unreadItems.forEach(function (item) {
+                        item.classList.remove('is-unread');
+                        var marker = item.querySelector('.notif-unread-marker');
+                        if (marker) { marker.remove(); }
+                    });
+                }).catch(function () {
+                    // silencieux : la notification restera simplement non lue jusqu'au prochain essai
+                });
+            }
+
+            document.addEventListener('click', function (e) {
+                if (!menu.contains(e.target)) {
+                    menu.classList.remove('open');
+                    trigger.setAttribute('aria-expanded', 'false');
+                }
+                if (!notifMenu.contains(e.target)) {
+                    notifMenu.classList.remove('open');
+                    notifBtn.setAttribute('aria-expanded', 'false');
+                }
+            });
+        });
+    </script>
+    {% block page_scripts %}{% endblock %}
+{% endblock %}
