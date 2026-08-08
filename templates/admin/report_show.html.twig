@@ -143,7 +143,7 @@
 
         <div class="report-title-block">
             <h2>ETATS FINANCIERS PROVISOIRES</h2>
-            <p>AU 31/12/{{ report.exercice }}</p>
+            <p>AU {{ report.balance ? report.balance.dateFin|date('d/m/Y') : '31/12/' ~ report.exercice }}</p>
             <p>(EN {{ settings.devise }})</p>
         </div>
 
@@ -154,7 +154,7 @@
                 {% for libelle, montant in report.bilanActif %}
                     <div class="line-item {{ libelle starts with 'Total' ? 'total' }}">
                         <span>{{ libelle }}</span>
-                        <span class="amount">{{ montant|number_format(0, ',', ' ') }}</span>
+                        <span class="amount">{{ montant|abs|number_format(0, ',', ' ') }}</span>
                     </div>
                 {% endfor %}
             </div>
@@ -163,7 +163,7 @@
                 {% for libelle, montant in report.bilanPassif %}
                     <div class="line-item {{ libelle starts with 'Total' ? 'total' }}">
                         <span>{{ libelle }}</span>
-                        <span class="amount">{{ montant|number_format(0, ',', ' ') }}</span>
+                        <span class="amount">{{ montant|abs|number_format(0, ',', ' ') }}</span>
                     </div>
                 {% endfor %}
             </div>
@@ -176,7 +176,7 @@
                 {% for libelle, montant in report.compteCharges %}
                     <div class="line-item {{ libelle starts with 'Total' ? 'total' }}">
                         <span>{{ libelle }}</span>
-                        <span class="amount">{{ montant|number_format(0, ',', ' ') }}</span>
+                        <span class="amount">{{ montant|abs|number_format(0, ',', ' ') }}</span>
                     </div>
                 {% endfor %}
             </div>
@@ -185,7 +185,7 @@
                 {% for libelle, montant in report.compteProduits %}
                     <div class="line-item {{ libelle starts with 'Total' ? 'total' }}">
                         <span>{{ libelle }}</span>
-                        <span class="amount">{{ montant|number_format(0, ',', ' ') }}</span>
+                        <span class="amount">{{ montant|abs|number_format(0, ',', ' ') }}</span>
                     </div>
                 {% endfor %}
             </div>
