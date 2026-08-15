@@ -224,16 +224,6 @@
             text-align: center;
         }
 
-        .session-strip {
-            margin-top: 1.4rem;
-            display: flex;
-            justify-content: space-between;
-            font-family: 'IBM Plex Mono', monospace;
-            font-size: 0.68rem;
-            color: rgba(255, 255, 255, 0.35);
-            letter-spacing: 0.02em;
-        }
-
         @media (max-width: 420px) {
             .login-card { padding: 2.25rem 1.5rem 1.75rem; border-radius: 14px; }
         }
@@ -317,10 +307,6 @@
         <p class="form-footer">
             L'accès est attribué par un administrateur.<br>Aucune inscription en libre-service n'est proposée.
         </p>
-
-        <div class="session-strip" aria-hidden="true" style="justify-content: flex-end;">
-            <span id="ref-clock"></span>
-        </div>
     </div>
 {% endblock %}
 
@@ -328,18 +314,6 @@
     {{ parent() }}
     <script>
         document.addEventListener('DOMContentLoaded', function () {
-            var clockEl = document.getElementById('ref-clock');
-            var reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-            function tick() {
-                var now = new Date();
-                var pad = function (n) { return String(n).padStart(2, '0'); };
-                clockEl.textContent = pad(now.getHours()) + ':' + pad(now.getMinutes()) + ':' + pad(now.getSeconds());
-            }
-
-            tick();
-            if (!reduced) { setInterval(tick, 1000); }
-
             var toggleBtn = document.getElementById('togglePassword');
             var eyeIcon = document.getElementById('eyeIcon');
             var passwordInput = document.getElementById('password');
