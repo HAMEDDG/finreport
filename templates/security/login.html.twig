@@ -318,8 +318,7 @@
             L'accès est attribué par un administrateur.<br>Aucune inscription en libre-service n'est proposée.
         </p>
 
-        <div class="session-strip" aria-hidden="true">
-            <span id="ref-code"></span>
+        <div class="session-strip" aria-hidden="true" style="justify-content: flex-end;">
             <span id="ref-clock"></span>
         </div>
     </div>
@@ -330,10 +329,7 @@
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             var clockEl = document.getElementById('ref-clock');
-            var refEl = document.getElementById('ref-code');
             var reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-            refEl.textContent = 'RPT-' + new Date().getFullYear() + '-' + Math.floor(1000 + Math.random() * 9000);
 
             function tick() {
                 var now = new Date();
