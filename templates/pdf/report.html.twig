@@ -121,6 +121,82 @@
             font-size: 8px;
             color: #6B7280;
         }
+
+        table.resultat {
+            width: 100%;
+            border-collapse: collapse;
+            border: 1px solid #1C2333;
+        }
+
+        table.resultat col.ref { width: 7%; }
+        table.resultat col.sens { width: 6%; }
+        table.resultat col.montant { width: 18%; }
+
+        table.resultat th {
+            text-align: left;
+            font-size: 9px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #8A6E1B;
+            background: #E4E6EB;
+            padding: 4px 6px;
+            border: 1px solid #1C2333;
+        }
+
+        table.resultat th.montant, table.resultat th.sens { text-align: right; }
+
+        table.resultat td {
+            padding: 3px 6px;
+            border: 1px solid #E4E6EB;
+            font-size: 9px;
+        }
+
+        table.resultat td.montant {
+            text-align: right;
+            white-space: nowrap;
+        }
+
+        table.resultat td.ref,
+        table.resultat td.sens {
+            color: #6B7280;
+            text-align: center;
+        }
+
+        table.resultat tr.total td,
+        table.resultat td.total {
+            background: #E4E6EB;
+            font-weight: bold;
+            border-top: 1px solid #1C2333;
+            border-bottom: 1px solid #1C2333;
+        }
+
+        table.resultat .titre {
+            text-transform: uppercase;
+        }
+
+        table.resultat .formule {
+            display: block;
+            font-weight: normal;
+            font-size: 7px;
+            color: #6B7280;
+            margin-top: 2px;
+        }
+
+        /* Bilan Actif/Passif côte à côte : 8 colonnes, texte plus compact. */
+        table.resultat.bilan { font-size: 8px; }
+        table.resultat.bilan th, table.resultat.bilan td { padding: 2px 4px; font-size: 8px; }
+        table.resultat.bilan col.libelle-bilan { width: 17%; }
+        table.resultat.bilan col.ref { width: 4%; }
+        table.resultat.bilan col.montant { width: 13%; }
+        table.resultat.bilan th.groupe {
+            text-align: center;
+            background: #DCE0E8;
+            border-right: 2px solid #1C2333;
+        }
+        table.resultat.bilan td:nth-child(6) {
+            border-left: 2px solid #1C2333;
+        }
     </style>
 </head>
 <body>
@@ -148,43 +224,87 @@
     </div>
 
     <div class="section-title">BILAN</div>
-    <table class="lines">
+    <table class="resultat bilan">
         <colgroup>
-            <col class="libelle"><col class="montant"><col class="libelle"><col class="montant">
+            <col class="ref"><col class="libelle-bilan"><col class="montant"><col class="montant"><col class="montant">
+            <col class="ref"><col class="libelle-bilan"><col class="montant">
         </colgroup>
         <tr>
-            <th>Actif</th>
-            <th class="montant-col">Montant</th>
-            <th>Passif</th>
-            <th class="montant-col">Montant</th>
+            <th colspan="5" class="groupe">Actif</th>
+            <th colspan="3" class="groupe">Passif</th>
         </tr>
-        {% for ligne in lignesBilan %}
+        <tr>
+            <th class="ref">Réf</th>
+            <th>Libellés</th>
+            <th class="montant">Brut</th>
+            <th class="montant">Amort/Prov</th>
+            <th class="montant">Net {{ report.exercice }}</th>
+            <th class="ref">Réf</th>
+            <th>Libellés</th>
+            <th class="montant">Net {{ report.exercice }}</th>
+        </tr>
+        {% set nbLignes = bilanActif|length > bilanPassif|length ? bilanActif|length : bilanPassif|length %}
+        {% for i in 0..(nbLignes - 1) %}
+            {% set a = bilanActif[i]|default(null) %}
+            {% set p = bilanPassif[i]|default(null) %}
             <tr>
-                <td{{ ligne.gaucheTotal ? ' class="total"' }}>{{ ligne.gaucheLibelle }}</td>
-                <td class="montant{{ ligne.gaucheTotal ? ' total' }}">{{ ligne.gaucheMontant is not null ? ligne.gaucheMontant|abs|number_format(0, ',', ' ') }}</td>
-                <td{{ ligne.droiteTotal ? ' class="total"' }}>{{ ligne.droiteLibelle }}</td>
-                <td class="montant{{ ligne.droiteTotal ? ' total' }}">{{ ligne.droiteMontant is not null ? ligne.droiteMontant|abs|number_format(0, ',', ' ') }}</td>
+                <td class="ref{{ a and a.type == 'total' ? ' total' }}">{{ a ? a.ref|default('') }}</td>
+                {% if a and a.type == 'total' %}
+                    {% set parties = a.libelle|split(' (', 2) %}
+                    <td class="libelle total">
+                        <span class="titre">{{ parties[0] }}</span>
+                        {% if parties[1] is defined %}<span class="formule">({{ parties[1] }}</span>{% endif %}
+                    </td>
+                    <td class="montant total">{{ a.brut|number_format(0, ',', ' ') }}</td>
+                    <td class="montant total">{{ a.amortProv|number_format(0, ',', ' ') }}</td>
+                    <td class="montant total">{{ a.montant|number_format(0, ',', ' ') }}</td>
+                {% else %}
+                    <td class="libelle">{{ a ? a.libelle }}</td>
+                    <td class="montant">{{ a ? a.brut|number_format(0, ',', ' ') }}</td>
+                    <td class="montant">{{ a ? a.amortProv|number_format(0, ',', ' ') }}</td>
+                    <td class="montant">{{ a ? a.montant|number_format(0, ',', ' ') }}</td>
+                {% endif %}
+                <td class="ref{{ p and p.type == 'total' ? ' total' }}">{{ p ? p.ref|default('') }}</td>
+                {% if p and p.type == 'total' %}
+                    {% set partiesP = p.libelle|split(' (', 2) %}
+                    <td class="libelle total">
+                        <span class="titre">{{ partiesP[0] }}</span>
+                        {% if partiesP[1] is defined %}<span class="formule">({{ partiesP[1] }}</span>{% endif %}
+                    </td>
+                    <td class="montant total">{{ p.montant|number_format(0, ',', ' ') }}</td>
+                {% else %}
+                    <td class="libelle">{{ p ? p.libelle }}</td>
+                    <td class="montant">{{ p ? p.montant|number_format(0, ',', ' ') }}</td>
+                {% endif %}
             </tr>
         {% endfor %}
     </table>
 
     <div class="section-title">COMPTE DE RÉSULTAT</div>
-    <table class="lines">
+    <table class="resultat">
         <colgroup>
-            <col class="libelle"><col class="montant"><col class="libelle"><col class="montant">
+            <col class="ref"><col class="libelle"><col class="sens"><col class="montant">
         </colgroup>
         <tr>
-            <th>Charges</th>
-            <th class="montant-col">Montant</th>
-            <th>Produits</th>
-            <th class="montant-col">Montant</th>
+            <th class="ref">Réf</th>
+            <th>Libellés</th>
+            <th class="sens">(2)</th>
+            <th class="montant">Exercice {{ report.exercice }}</th>
         </tr>
-        {% for ligne in lignesResultat %}
-            <tr>
-                <td{{ ligne.gaucheTotal ? ' class="total"' }}>{{ ligne.gaucheLibelle }}</td>
-                <td class="montant{{ ligne.gaucheTotal ? ' total' }}">{{ ligne.gaucheMontant is not null ? ligne.gaucheMontant|abs|number_format(0, ',', ' ') }}</td>
-                <td{{ ligne.droiteTotal ? ' class="total"' }}>{{ ligne.droiteLibelle }}</td>
-                <td class="montant{{ ligne.droiteTotal ? ' total' }}">{{ ligne.droiteMontant is not null ? ligne.droiteMontant|abs|number_format(0, ',', ' ') }}</td>
+        {% for ligne in compteResultat %}
+            <tr{{ ligne.type == 'total' ? ' class="total"' }}>
+                <td class="ref">{{ ligne.ref|default('') }}</td>
+                <td class="libelle">
+                    {% if ligne.type == 'total' %}
+                        {% set parties = ligne.libelle|split(' (', 2) %}
+                        <span class="titre">{{ parties[0] }}</span>
+                        {% if parties[1] is defined %}<span class="formule">({{ parties[1] }}</span>{% endif %}
+                    {% else %}
+                        {{ ligne.libelle }}{% if ligne.note %} ({{ ligne.note }}){% endif %}
+                    {% endif %}
+                </td>
+                <td class="sens">{{ ligne.sens|default('') }}</td>
+                <td class="montant">{{ ligne.montant|number_format(0, ',', ' ') }}</td>
             </tr>
         {% endfor %}
     </table>

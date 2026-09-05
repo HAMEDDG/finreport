@@ -46,6 +46,7 @@ class BalanceType extends AbstractType
                 'mapped' => false,
                 'required' => true,
                 'constraints' => [
+                    new NotBlank(message: 'Le fichier de balance est obligatoire.'),
                     new File(
                         maxSize: '20M',
                         extensions: [

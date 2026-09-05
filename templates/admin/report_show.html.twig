@@ -83,6 +83,80 @@
 
         .line-item .amount { font-variant-numeric: tabular-nums; }
 
+        .resultat-table-wrap { max-width: 900px; margin: 0 auto 1rem; overflow-x: auto; }
+
+        table.resultat-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.86rem;
+            border: 1px solid var(--ink-800);
+        }
+
+        table.resultat-table th {
+            text-align: left;
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--gold-dark, #8A6E1B);
+            padding: 0.5rem;
+            background: var(--paper-line);
+            border: 1px solid var(--ink-800);
+        }
+
+        table.resultat-table th.col-ref,
+        table.resultat-table td.col-ref { width: 8%; }
+
+        table.resultat-table th.col-sens,
+        table.resultat-table td.col-sens { width: 6%; text-align: center; }
+
+        table.resultat-table th.col-montant,
+        table.resultat-table td.col-montant { width: 20%; text-align: right; }
+
+        table.resultat-table td {
+            padding: 0.5rem;
+            border: 1px solid var(--paper-line);
+            vertical-align: top;
+        }
+
+        table.resultat-table td.col-ref { text-align: center; color: var(--text-muted); }
+
+        table.resultat-table td.col-montant { font-variant-numeric: tabular-nums; }
+
+        table.resultat-table .note { color: var(--text-muted); font-weight: 600; margin-left: 0.3rem; }
+
+        table.resultat-table tr.total td,
+        table.resultat-table td.total-row {
+            background: var(--paper-line);
+            font-weight: 700;
+            color: var(--ink-800);
+            border-top: 1px solid var(--ink-800);
+            border-bottom: 1px solid var(--ink-800);
+        }
+
+        table.resultat-table tr.total .titre,
+        table.resultat-table .total-row .titre {
+            text-transform: uppercase;
+            letter-spacing: 0.02em;
+        }
+
+        table.resultat-table tr.total .formule,
+        table.resultat-table .total-row .formule {
+            display: block;
+            font-weight: 400;
+            font-size: 0.74rem;
+            color: var(--text-muted);
+            margin-top: 0.15rem;
+            text-transform: none;
+        }
+
+        .bilan-wrap { max-width: 100%; }
+        table.bilan-table { font-size: 0.76rem; }
+        table.bilan-table th, table.bilan-table td { padding: 0.4rem; }
+        table.bilan-table th[colspan] { text-align: center; }
+        table.bilan-table td:nth-child(6),
+        table.bilan-table th:nth-child(6) { border-left: 2px solid var(--ink-800); }
+
         .report-actions {
             display: flex;
             justify-content: flex-end;
@@ -148,47 +222,94 @@
         </div>
 
         <div class="section-title">BILAN</div>
-        <div class="two-col">
-            <div class="col-block">
-                <h3>Actif</h3>
-                {% for libelle, montant in report.bilanActif %}
-                    <div class="line-item {{ libelle starts with 'Total' ? 'total' }}">
-                        <span>{{ libelle }}</span>
-                        <span class="amount">{{ montant|abs|number_format(0, ',', ' ') }}</span>
-                    </div>
-                {% endfor %}
-            </div>
-            <div class="col-block">
-                <h3>Passif</h3>
-                {% for libelle, montant in report.bilanPassif %}
-                    <div class="line-item {{ libelle starts with 'Total' ? 'total' }}">
-                        <span>{{ libelle }}</span>
-                        <span class="amount">{{ montant|abs|number_format(0, ',', ' ') }}</span>
-                    </div>
-                {% endfor %}
-            </div>
+        <div class="resultat-table-wrap bilan-wrap">
+            <table class="resultat-table bilan-table">
+                <thead>
+                    <tr>
+                        <th colspan="5">Actif</th>
+                        <th colspan="3">Passif</th>
+                    </tr>
+                    <tr>
+                        <th class="col-ref">Réf</th>
+                        <th>Libellés</th>
+                        <th class="col-montant">Brut</th>
+                        <th class="col-montant">Amort/Prov</th>
+                        <th class="col-montant">Net {{ report.exercice }}</th>
+                        <th class="col-ref">Réf</th>
+                        <th>Libellés</th>
+                        <th class="col-montant">Net {{ report.exercice }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% set nbLignes = report.bilanActif|length > report.bilanPassif|length ? report.bilanActif|length : report.bilanPassif|length %}
+                    {% for i in 0..(nbLignes - 1) %}
+                        {% set a = report.bilanActif[i]|default(null) %}
+                        {% set p = report.bilanPassif[i]|default(null) %}
+                        <tr>
+                            <td class="col-ref{{ a and a.type == 'total' ? ' total-row' }}">{{ a ? a.ref|default('') }}</td>
+                            {% if a and a.type == 'total' %}
+                                {% set parties = a.libelle|split(' (', 2) %}
+                                <td class="total-row">
+                                    <span class="titre">{{ parties[0] }}</span>
+                                    {% if parties[1] is defined %}<span class="formule">({{ parties[1] }}</span>{% endif %}
+                                </td>
+                                <td class="col-montant total-row">{{ a.brut|number_format(0, ',', ' ') }}</td>
+                                <td class="col-montant total-row">{{ a.amortProv|number_format(0, ',', ' ') }}</td>
+                                <td class="col-montant total-row">{{ a.montant|number_format(0, ',', ' ') }}</td>
+                            {% else %}
+                                <td>{{ a ? a.libelle }}</td>
+                                <td class="col-montant">{{ a ? a.brut|number_format(0, ',', ' ') }}</td>
+                                <td class="col-montant">{{ a ? a.amortProv|number_format(0, ',', ' ') }}</td>
+                                <td class="col-montant">{{ a ? a.montant|number_format(0, ',', ' ') }}</td>
+                            {% endif %}
+                            <td class="col-ref{{ p and p.type == 'total' ? ' total-row' }}">{{ p ? p.ref|default('') }}</td>
+                            {% if p and p.type == 'total' %}
+                                {% set partiesP = p.libelle|split(' (', 2) %}
+                                <td class="total-row">
+                                    <span class="titre">{{ partiesP[0] }}</span>
+                                    {% if partiesP[1] is defined %}<span class="formule">({{ partiesP[1] }}</span>{% endif %}
+                                </td>
+                                <td class="col-montant total-row">{{ p.montant|number_format(0, ',', ' ') }}</td>
+                            {% else %}
+                                <td>{{ p ? p.libelle }}</td>
+                                <td class="col-montant">{{ p ? p.montant|number_format(0, ',', ' ') }}</td>
+                            {% endif %}
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
 
         <div class="section-title">COMPTE DE RÉSULTAT</div>
-        <div class="two-col">
-            <div class="col-block">
-                <h3>Charges</h3>
-                {% for libelle, montant in report.compteCharges %}
-                    <div class="line-item {{ libelle starts with 'Total' ? 'total' }}">
-                        <span>{{ libelle }}</span>
-                        <span class="amount">{{ montant|abs|number_format(0, ',', ' ') }}</span>
-                    </div>
-                {% endfor %}
-            </div>
-            <div class="col-block">
-                <h3>Produits</h3>
-                {% for libelle, montant in report.compteProduits %}
-                    <div class="line-item {{ libelle starts with 'Total' ? 'total' }}">
-                        <span>{{ libelle }}</span>
-                        <span class="amount">{{ montant|abs|number_format(0, ',', ' ') }}</span>
-                    </div>
-                {% endfor %}
-            </div>
+        <div class="resultat-table-wrap">
+            <table class="resultat-table">
+                <thead>
+                    <tr>
+                        <th class="col-ref">Réf</th>
+                        <th>Libellés</th>
+                        <th class="col-sens">(2)</th>
+                        <th class="col-montant">Exercice {{ report.exercice }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for ligne in report.compteResultat %}
+                        <tr{{ ligne.type == 'total' ? ' class="total"' }}>
+                            <td class="col-ref">{{ ligne.ref|default('') }}</td>
+                            {% if ligne.type == 'total' %}
+                                {% set parties = ligne.libelle|split(' (', 2) %}
+                                <td>
+                                    <span class="titre">{{ parties[0] }}</span>
+                                    {% if parties[1] is defined %}<span class="formule">({{ parties[1] }}</span>{% endif %}
+                                </td>
+                            {% else %}
+                                <td>{{ ligne.libelle }}{% if ligne.note %}<span class="note">({{ ligne.note }})</span>{% endif %}</td>
+                            {% endif %}
+                            <td class="col-sens">{{ ligne.sens|default('') }}</td>
+                            <td class="col-montant">{{ ligne.montant|number_format(0, ',', ' ') }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
 
         <div class="report-actions">

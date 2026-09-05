@@ -36,21 +36,33 @@ class Report
     #[ORM\JoinColumn(nullable: true)]
     private ?Balance $balance = null;
 
-    /** Rubriques du Bilan — Actif. Structure prête, montants à 0 en attendant le moteur de calcul. */
+    /**
+     * Bilan Actif, au format "liste" avec REF, conforme au modèle SYSCOHADA système
+     * normal (Brut / Amortissements-Provisions / Net par rubrique).
+     *
+     * Chaque ligne : {ref: string, libelle: string, brut: float, amortProv: float, montant: float, type: 'ligne'|'total'}.
+     */
     #[ORM\Column(type: 'json')]
     private array $bilanActif = [];
 
-    /** Rubriques du Bilan — Passif. */
+    /**
+     * Bilan Passif, au format "liste" avec REF.
+     *
+     * Chaque ligne : {ref: string, libelle: string, montant: float, type: 'ligne'|'total'}.
+     */
     #[ORM\Column(type: 'json')]
     private array $bilanPassif = [];
 
-    /** Rubriques du Compte de Résultat — Charges. */
+    /**
+     * Compte de Résultat, au format "liste" avec soldes intermédiaires de
+     * gestion (Marge brute, Chiffre d'affaires, Valeur ajoutée, EBE, Résultat
+     * d'exploitation, Résultat financier, Résultat net...), conforme au
+     * modèle SYSCOHADA système normal.
+     *
+     * Chaque ligne : {ref: string, libelle: string, note: ?string, sens: '+'|'-'|'=', montant: float, type: 'ligne'|'total'}.
+     */
     #[ORM\Column(type: 'json')]
-    private array $compteCharges = [];
-
-    /** Rubriques du Compte de Résultat — Produits. */
-    #[ORM\Column(type: 'json')]
-    private array $compteProduits = [];
+    private array $compteResultat = [];
 
     public function __construct()
     {
@@ -86,9 +98,6 @@ class Report
     public function getBilanPassif(): array { return $this->bilanPassif; }
     public function setBilanPassif(array $bilanPassif): static { $this->bilanPassif = $bilanPassif; return $this; }
 
-    public function getCompteCharges(): array { return $this->compteCharges; }
-    public function setCompteCharges(array $compteCharges): static { $this->compteCharges = $compteCharges; return $this; }
-
-    public function getCompteProduits(): array { return $this->compteProduits; }
-    public function setCompteProduits(array $compteProduits): static { $this->compteProduits = $compteProduits; return $this; }
+    public function getCompteResultat(): array { return $this->compteResultat; }
+    public function setCompteResultat(array $compteResultat): static { $this->compteResultat = $compteResultat; return $this; }
 }

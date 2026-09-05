@@ -62,7 +62,7 @@ class ReportGenerationService
             ));
         }
 
-        $bilanActif = $this->structureBilanActifVide();
+        $actif = $this->structureActifVide();
         $bilanPassif = $this->structureBilanPassifVide();
         $charges = $this->structureChargesVide();
         $produits = $this->structureProduitsVide();
@@ -74,76 +74,27 @@ class ReportGenerationService
             }
 
             match ($classement->section) {
-                AccountClassification::SECTION_ACTIF => $bilanActif[$classement->rubrique] += $classement->montant,
+                AccountClassification::SECTION_ACTIF => $actif[$classement->rubrique][$classement->colonne] += $classement->montant,
                 AccountClassification::SECTION_PASSIF => $bilanPassif[$classement->rubrique] += $classement->montant,
                 AccountClassification::SECTION_CHARGES => $charges[$classement->rubrique] += $classement->montant,
                 AccountClassification::SECTION_PRODUITS => $produits[$classement->rubrique] += $classement->montant,
             };
         }
 
-        $charges['Total des charges'] = array_sum($charges);
-        $produits['Total des produits'] = array_sum($produits);
+        $compteResultat = $this->construireCompteResultat($charges, $produits);
+        $bilanPassif["Résultat net de l'exercice"] = $compteResultat['resultatNet'];
 
-        $resultatNet = $produits['Total des produits'] - $charges['Total des charges'];
-        $bilanPassif["Résultat net de l'exercice"] = $resultatNet;
-
-        $bilanActif['Total Immobilisations'] =
-            $bilanActif['Immobilisations incorporelles']
-            + $bilanActif['Immobilisations corporelles']
-            + $bilanActif['Immobilisations financières']
-            + $bilanActif['Amortissements et dépréciations (-)'];
-
-        $bilanActif['Total Actif circulant'] =
-            $bilanActif['Stocks']
-            + $bilanActif['Dépréciations des stocks (-)']
-            + $bilanActif['Créances et emplois assimilés'];
-
-        $bilanActif['Total Trésorerie-Actif'] =
-            $bilanActif['Titres de placement']
-            + $bilanActif['Valeurs à encaisser']
-            + $bilanActif['Banques, chèques postaux, caisse'];
-
-        $bilanActif['Total Actif'] =
-            $bilanActif['Total Immobilisations']
-            + $bilanActif['Total Actif circulant']
-            + $bilanActif['Total Trésorerie-Actif'];
-
-        $bilanPassif['Total Capitaux propres'] =
-            $bilanPassif['Capital']
-            + $bilanPassif['Réserves']
-            + $bilanPassif['Report à nouveau']
-            + $bilanPassif["Résultat net de l'exercice"]
-            + $bilanPassif["Subventions d'investissement"]
-            + $bilanPassif['Provisions réglementées'];
-
-        $bilanPassif['Total Dettes financières'] =
-            $bilanPassif['Emprunts et dettes financières']
-            + $bilanPassif['Provisions financières pour risques et charges'];
-
-        $bilanPassif['Total Passif circulant'] = $bilanPassif['Dettes circulantes'];
-
-        $bilanPassif['Total Trésorerie-Passif'] = $bilanPassif['Banques, crédits de trésorerie'];
-
-        $bilanPassif['Total Passif'] =
-            $bilanPassif['Total Capitaux propres']
-            + $bilanPassif['Total Dettes financières']
-            + $bilanPassif['Total Passif circulant']
-            + $bilanPassif['Total Trésorerie-Passif'];
-
-        $bilanActif = array_map(fn (float $v): float => round($v, 2), $bilanActif);
-        $bilanPassif = array_map(fn (float $v): float => round($v, 2), $bilanPassif);
-        $charges = array_map(fn (float $v): float => round($v, 2), $charges);
-        $produits = array_map(fn (float $v): float => round($v, 2), $produits);
+        $bilanActif = $this->construireBilanActif($actif);
+        $bilanPassifLignes = $this->construireBilanPassif($bilanPassif);
 
         $report = new Report();
         $report->setEntreprise($balance->getEntreprise());
         $report->setExercice($balance->getExercice());
         $report->setUtilisateur($utilisateur);
         $report->setBalance($balance);
-        $report->setBilanActif($bilanActif);
-        $report->setBilanPassif($bilanPassif);
-        $report->setCompteCharges($charges);
-        $report->setCompteProduits($produits);
+        $report->setBilanActif($bilanActif['lignes']);
+        $report->setBilanPassif($bilanPassifLignes['lignes']);
+        $report->setCompteResultat($compteResultat['lignes']);
 
         $this->entityManager->persist($report);
         $this->entityManager->flush();
@@ -151,44 +102,44 @@ class ReportGenerationService
         return $report;
     }
 
-    private function structureBilanActifVide(): array
+    /** @return array<string, array{brut: float, amortProv: float}> */
+    private function structureActifVide(): array
     {
-        return [
-            'Immobilisations incorporelles' => 0.0,
-            'Immobilisations corporelles' => 0.0,
-            'Immobilisations financières' => 0.0,
-            'Amortissements et dépréciations (-)' => 0.0,
-            'Total Immobilisations' => 0.0,
-            'Stocks' => 0.0,
-            'Dépréciations des stocks (-)' => 0.0,
-            'Créances et emplois assimilés' => 0.0,
-            'Total Actif circulant' => 0.0,
-            'Titres de placement' => 0.0,
-            'Valeurs à encaisser' => 0.0,
-            'Banques, chèques postaux, caisse' => 0.0,
-            'Total Trésorerie-Actif' => 0.0,
-            'Total Actif' => 0.0,
+        $rubriques = [
+            'Brevets, Licences', 'Logiciels', 'Terrains', 'Bâtiments', 'Installations et aménagements',
+            'Matériel et Outillage', 'Matériel, Mobilier de bureau', 'Matériel informatique',
+            'Immobilisations corporelles en cours', 'Avances et acomptes', 'Titres de participation',
+            'Autres immobilisations financières', 'Stocks et encours', 'Fournisseurs avances versées',
+            'Clients', 'autres créances', 'Titres de placement', 'Disponibilités',
         ];
+
+        return array_fill_keys($rubriques, ['brut' => 0.0, 'amortProv' => 0.0]);
     }
 
     private function structureBilanPassifVide(): array
     {
         return [
             'Capital' => 0.0,
-            'Réserves' => 0.0,
+            'Actionnaires capital non appelé' => 0.0,
+            "Primes d'apport, d'émission, de fusion" => 0.0,
+            'Ecarts de réévaluation' => 0.0,
+            'Réserves indisponibles' => 0.0,
+            'Réserves libres' => 0.0,
             'Report à nouveau' => 0.0,
+            'Résultat en instance d\'affectation' => 0.0,
             'Résultat net de l\'exercice' => 0.0,
-            "Subventions d'investissement" => 0.0,
             'Provisions réglementées' => 0.0,
-            'Total Capitaux propres' => 0.0,
+            "Subventions d'investissement" => 0.0,
             'Emprunts et dettes financières' => 0.0,
+            'Dettes de crédit-bail et contrats assimilés' => 0.0,
             'Provisions financières pour risques et charges' => 0.0,
-            'Total Dettes financières' => 0.0,
-            'Dettes circulantes' => 0.0,
-            'Total Passif circulant' => 0.0,
-            'Banques, crédits de trésorerie' => 0.0,
-            'Total Trésorerie-Passif' => 0.0,
-            'Total Passif' => 0.0,
+            'Clients, avances reçues' => 0.0,
+            "Fournisseurs d'exploitation" => 0.0,
+            'Dettes fiscales et sociales' => 0.0,
+            'Autres dettes' => 0.0,
+            'Risques provisionnés' => 0.0,
+            "Banques, crédits d'escompte" => 0.0,
+            'Banques, crédits de trésorerie et découvert' => 0.0,
         ];
     }
 
@@ -196,18 +147,19 @@ class ReportGenerationService
     {
         return [
             'Achats de marchandises' => 0.0,
-            'Variation de stocks' => 0.0,
+            'Variation de stocks (marchandises)' => 0.0,
+            'Achats de matières premières et fournitures liées' => 0.0,
+            'Variation de stocks (matières et autres approvisionnements)' => 0.0,
             'Autres achats' => 0.0,
             'Transports' => 0.0,
             'Services extérieurs' => 0.0,
             'Impôts et taxes' => 0.0,
             'Autres charges' => 0.0,
             'Charges de personnel' => 0.0,
-            'Dotations aux amortissements' => 0.0,
-            'Charges financières' => 0.0,
-            'Charges HAO' => 0.0,
+            'Dotations aux amortissements et aux provisions' => 0.0,
+            'Frais financiers et charges assimilées' => 0.0,
+            'Participation des travailleurs' => 0.0,
             'Impôts sur le résultat' => 0.0,
-            'Total des charges' => 0.0,
         ];
     }
 
@@ -217,14 +169,281 @@ class ReportGenerationService
             'Ventes de marchandises' => 0.0,
             'Ventes de produits fabriqués' => 0.0,
             'Travaux, services vendus' => 0.0,
-            'Production immobilisée' => 0.0,
             'Production stockée' => 0.0,
+            'Production immobilisée' => 0.0,
+            'Produits accessoires' => 0.0,
             'Subventions d\'exploitation' => 0.0,
             'Autres produits' => 0.0,
-            'Reprises d\'amortissements et provisions' => 0.0,
-            'Produits financiers' => 0.0,
-            'Produits HAO' => 0.0,
-            'Total des produits' => 0.0,
+            'Reprises de provisions' => 0.0,
+            'Transferts de charges' => 0.0,
+            'Revenus financiers et produits assimilés' => 0.0,
         ];
+    }
+
+    /**
+     * Construit le Compte de Résultat au format "liste" avec soldes
+     * intermédiaires de gestion (SIG), conforme au modèle SYSCOHADA système
+     * normal : Marge brute, Chiffre d'affaires, Valeur ajoutée, Excédent
+     * brut d'exploitation, Résultat d'exploitation, Résultat financier,
+     * Résultat avant prélèvement, Résultat net.
+     *
+     * @param array<string, float> $charges  rubriques de structureChargesVide(), déjà alimentées
+     * @param array<string, float> $produits rubriques de structureProduitsVide(), déjà alimentées
+     *
+     * @return array{lignes: list<array{ref: string, libelle: string, note: ?string, sens: string, montant: float, type: string}>, resultatNet: float}
+     */
+    private function construireCompteResultat(array $charges, array $produits): array
+    {
+        // Une rubrique garde toujours le sens de sa nature comptable (produit = +, charge = -),
+        // même si le solde réel importé est anormal (ex. compte de vente en position débitrice) :
+        // on force donc la grandeur en valeur absolue avant tout calcul, pour que le montant
+        // affiché ne contredise jamais la colonne (2) et que les formules restent de simples sommes.
+        $charges = array_map('abs', $charges);
+        $produits = array_map('abs', $produits);
+
+        $margeBrute = $produits['Ventes de marchandises']
+            - $charges['Achats de marchandises']
+            - $charges['Variation de stocks (marchandises)'];
+
+        $chiffreAffaires = $produits['Ventes de marchandises']
+            + $produits['Ventes de produits fabriqués']
+            + $produits['Travaux, services vendus']
+            + $produits['Produits accessoires'];
+
+        $valeurAjoutee = $margeBrute
+            + $produits['Ventes de produits fabriqués']
+            + $produits['Travaux, services vendus']
+            + $produits['Production stockée']
+            + $produits['Production immobilisée']
+            + $produits['Produits accessoires']
+            + $produits["Subventions d'exploitation"]
+            + $produits['Autres produits']
+            - $charges['Achats de matières premières et fournitures liées']
+            - $charges['Variation de stocks (matières et autres approvisionnements)']
+            - $charges['Autres achats']
+            - $charges['Transports']
+            - $charges['Services extérieurs']
+            - $charges['Impôts et taxes']
+            - $charges['Autres charges'];
+
+        $excedentBrutExploitation = $valeurAjoutee - $charges['Charges de personnel'];
+
+        $resultatExploitation = $excedentBrutExploitation
+            + $produits['Reprises de provisions']
+            + $produits['Transferts de charges']
+            - $charges['Dotations aux amortissements et aux provisions'];
+
+        $resultatFinancier = $produits['Revenus financiers et produits assimilés']
+            - $charges['Frais financiers et charges assimilées'];
+
+        $resultatAvantPrelevement = $resultatExploitation + $resultatFinancier;
+
+        $resultatNet = $resultatAvantPrelevement
+            - $charges['Participation des travailleurs']
+            - $charges['Impôts sur le résultat'];
+
+        // REF : codification standard SYSCOHADA (T.. = produit, R.. = charge, X.. = solde
+        // intermédiaire de gestion). "sens" (colonne 2) est un attribut fixe de la rubrique
+        // (+ produit / − charge / = solde) et ne dépend jamais du signe réel du solde importé.
+        $lignes = [
+            ['ref' => 'TA', 'libelle' => 'Ventes de marchandises', 'note' => 'A', 'sens' => '+', 'montant' => $produits['Ventes de marchandises']],
+            ['ref' => 'RA', 'libelle' => 'Achats de marchandises', 'note' => null, 'sens' => '-', 'montant' => -$charges['Achats de marchandises']],
+            ['ref' => 'RB', 'libelle' => 'Variation de stocks', 'note' => null, 'sens' => '-', 'montant' => -$charges['Variation de stocks (marchandises)']],
+            ['ref' => 'XA', 'libelle' => 'MARGE BRUTE (TA + RA + RB)', 'note' => null, 'sens' => '=', 'montant' => $margeBrute, 'type' => 'total'],
+
+            ['ref' => 'TB', 'libelle' => 'Ventes de produits fabriqués', 'note' => 'B', 'sens' => '+', 'montant' => $produits['Ventes de produits fabriqués']],
+            ['ref' => 'TC', 'libelle' => 'Travaux, services vendus', 'note' => 'C', 'sens' => '+', 'montant' => $produits['Travaux, services vendus']],
+            ['ref' => 'TD', 'libelle' => 'Production stockée (ou déstockage)', 'note' => null, 'sens' => '+', 'montant' => $produits['Production stockée']],
+            ['ref' => 'TE', 'libelle' => 'Production immobilisée', 'note' => null, 'sens' => '+', 'montant' => $produits['Production immobilisée']],
+            ['ref' => 'TF', 'libelle' => 'Produits accessoires', 'note' => 'D', 'sens' => '+', 'montant' => $produits['Produits accessoires']],
+            ['ref' => 'TG', 'libelle' => "Subventions d'exploitation", 'note' => null, 'sens' => '+', 'montant' => $produits["Subventions d'exploitation"]],
+            ['ref' => 'TH', 'libelle' => 'Autres produits', 'note' => null, 'sens' => '+', 'montant' => $produits['Autres produits']],
+            ['ref' => 'XB', 'libelle' => "CHIFFRE D'AFFAIRES (TA + TB + TC + TF)", 'note' => null, 'sens' => '=', 'montant' => $chiffreAffaires, 'type' => 'total'],
+
+            ['ref' => 'RC', 'libelle' => 'Achats de matières premières et fournitures liées', 'note' => null, 'sens' => '-', 'montant' => -$charges['Achats de matières premières et fournitures liées']],
+            ['ref' => 'RD', 'libelle' => 'Variation de stocks', 'note' => null, 'sens' => '-', 'montant' => -$charges['Variation de stocks (matières et autres approvisionnements)']],
+            ['ref' => 'RE', 'libelle' => 'Autres achats', 'note' => null, 'sens' => '-', 'montant' => -$charges['Autres achats']],
+            ['ref' => 'RF', 'libelle' => 'Transports', 'note' => null, 'sens' => '-', 'montant' => -$charges['Transports']],
+            ['ref' => 'RG', 'libelle' => 'Services extérieurs', 'note' => null, 'sens' => '-', 'montant' => -$charges['Services extérieurs']],
+            ['ref' => 'RH', 'libelle' => 'Impôts et taxes', 'note' => null, 'sens' => '-', 'montant' => -$charges['Impôts et taxes']],
+            ['ref' => 'RI', 'libelle' => 'Autres charges', 'note' => null, 'sens' => '-', 'montant' => -$charges['Autres charges']],
+            ['ref' => 'XC', 'libelle' => 'VALEUR AJOUTÉE (XA + TB + TC + TD + TE + TF + TG + TH + RC + RD + RE + RF + RG + RH + RI)', 'note' => null, 'sens' => '=', 'montant' => $valeurAjoutee, 'type' => 'total'],
+
+            ['ref' => 'RJ', 'libelle' => 'Charges de personnel', 'note' => null, 'sens' => '-', 'montant' => -$charges['Charges de personnel']],
+            ['ref' => 'XD', 'libelle' => "EXCÉDENT BRUT D'EXPLOITATION (XC + RJ)", 'note' => null, 'sens' => '=', 'montant' => $excedentBrutExploitation, 'type' => 'total'],
+
+            ['ref' => 'TI', 'libelle' => 'Reprises de provisions', 'note' => null, 'sens' => '+', 'montant' => $produits['Reprises de provisions']],
+            ['ref' => 'TJ', 'libelle' => 'Transferts de charges', 'note' => null, 'sens' => '+', 'montant' => $produits['Transferts de charges']],
+            ['ref' => 'RK', 'libelle' => 'Dotations aux amortissements et aux provisions', 'note' => null, 'sens' => '-', 'montant' => -$charges['Dotations aux amortissements et aux provisions']],
+            ['ref' => 'XE', 'libelle' => "RÉSULTAT D'EXPLOITATION (XD + TI + TJ + RK)", 'note' => null, 'sens' => '=', 'montant' => $resultatExploitation, 'type' => 'total'],
+
+            ['ref' => 'TK', 'libelle' => 'Revenus financiers et produits assimilés', 'note' => null, 'sens' => '+', 'montant' => $produits['Revenus financiers et produits assimilés']],
+            ['ref' => 'RL', 'libelle' => 'Frais financiers et charges assimilées', 'note' => null, 'sens' => '-', 'montant' => -$charges['Frais financiers et charges assimilées']],
+            ['ref' => 'XF', 'libelle' => 'RÉSULTAT FINANCIER (TK + RL)', 'note' => null, 'sens' => '=', 'montant' => $resultatFinancier, 'type' => 'total'],
+            ['ref' => 'XG', 'libelle' => 'RÉSULTAT AVANT PRÉLÈVEMENT (XE + XF)', 'note' => null, 'sens' => '=', 'montant' => $resultatAvantPrelevement, 'type' => 'total'],
+
+            ['ref' => 'RM', 'libelle' => 'Participation des travailleurs', 'note' => null, 'sens' => '-', 'montant' => -$charges['Participation des travailleurs']],
+            ['ref' => 'RN', 'libelle' => 'Impôts sur le résultat', 'note' => null, 'sens' => '-', 'montant' => -$charges['Impôts sur le résultat']],
+            ['ref' => 'XI', 'libelle' => 'RÉSULTAT NET (XG + RM + RN)', 'note' => null, 'sens' => '=', 'montant' => $resultatNet, 'type' => 'total'],
+        ];
+
+        foreach ($lignes as &$ligne) {
+            $ligne['type'] = $ligne['type'] ?? 'ligne';
+            $ligne['montant'] = round($ligne['montant'], 2);
+        }
+        unset($ligne);
+
+        return ['lignes' => $lignes, 'resultatNet' => round($resultatNet, 2)];
+    }
+
+    /**
+     * Construit le Bilan Actif au format "liste" avec REF : Brut / Amortissements-Provisions /
+     * Net par rubrique, puis Total Actif Immobilisé, Total Actif Circulant, Total Trésorerie
+     * Actif et Total Général, conformément au modèle SYSCOHADA système normal.
+     *
+     * REF : codification maison (AA.. immobilisé, BA.. circulant, CA.. trésorerie, ..Z pour les
+     * soldes), dans le même esprit que le compte de résultat — non garantie identique lettre
+     * pour lettre à l'annexe officielle à ce niveau de détail des sous-rubriques.
+     *
+     * @param array<string, array{brut: float, amortProv: float}> $actif rubriques de structureActifVide(), déjà alimentées
+     *
+     * @return array{lignes: list<array{ref: string, libelle: string, brut: ?float, amortProv: ?float, montant: float, type: string}>, totalActif: float}
+     */
+    private function construireBilanActif(array $actif): array
+    {
+        $lignes = [];
+
+        $section = function (array $rubriques, string $refTotal, string $libelleTotal) use ($actif, &$lignes): array {
+            $brutTotal = 0.0;
+            $amortProvTotal = 0.0;
+
+            foreach ($rubriques as [$ref, $nom]) {
+                $brut = $actif[$nom]['brut'];
+                $amortProv = $actif[$nom]['amortProv'];
+                $brutTotal += $brut;
+                $amortProvTotal += $amortProv;
+                $lignes[] = ['ref' => $ref, 'libelle' => $nom, 'brut' => $brut, 'amortProv' => $amortProv, 'montant' => $brut - $amortProv, 'type' => 'ligne'];
+            }
+
+            // Formule affichée sous le titre du sous-total, comme pour le compte de résultat.
+            $formule = implode(' + ', array_column($rubriques, 0));
+            $lignes[] = ['ref' => $refTotal, 'libelle' => "$libelleTotal ($formule)", 'brut' => $brutTotal, 'amortProv' => $amortProvTotal, 'montant' => $brutTotal - $amortProvTotal, 'type' => 'total'];
+
+            return [$brutTotal, $amortProvTotal];
+        };
+
+        [$immoBrut, $immoAmortProv] = $section([
+            ['AA', 'Brevets, Licences'],
+            ['AB', 'Logiciels'],
+            ['AC', 'Terrains'],
+            ['AD', 'Bâtiments'],
+            ['AE', 'Installations et aménagements'],
+            ['AF', 'Matériel et Outillage'],
+            ['AG', 'Matériel, Mobilier de bureau'],
+            ['AH', 'Matériel informatique'],
+            ['AI', 'Immobilisations corporelles en cours'],
+            ['AJ', 'Avances et acomptes'],
+            ['AK', 'Titres de participation'],
+            ['AL', 'Autres immobilisations financières'],
+        ], 'AZ', 'TOTAL ACTIF IMMOBILISE');
+
+        [$circBrut, $circAmortProv] = $section([
+            ['BA', 'Stocks et encours'],
+            ['BB', 'Fournisseurs avances versées'],
+            ['BC', 'Clients'],
+            ['BD', 'autres créances'],
+        ], 'BZ', 'TOTAL ACTIF CIRCULANT');
+
+        [$tresBrut, $tresAmortProv] = $section([
+            ['CA', 'Titres de placement'],
+            ['CB', 'Disponibilités'],
+        ], 'CZ', 'TOTAL TRESORERIE ACTIF');
+
+        $totalGeneralBrut = $immoBrut + $circBrut + $tresBrut;
+        $totalGeneralAmortProv = $immoAmortProv + $circAmortProv + $tresAmortProv;
+        $totalGeneralNet = $totalGeneralBrut - $totalGeneralAmortProv;
+
+        $lignes[] = ['ref' => 'ZZ', 'libelle' => 'TOTAL GENERAL (AZ + BZ + CZ)', 'brut' => $totalGeneralBrut, 'amortProv' => $totalGeneralAmortProv, 'montant' => $totalGeneralNet, 'type' => 'total'];
+
+        foreach ($lignes as &$ligne) {
+            $ligne['brut'] = round($ligne['brut'], 2);
+            $ligne['amortProv'] = round($ligne['amortProv'], 2);
+            $ligne['montant'] = round($ligne['montant'], 2);
+        }
+        unset($ligne);
+
+        return ['lignes' => $lignes, 'totalActif' => round($totalGeneralNet, 2)];
+    }
+
+    /**
+     * Construit le Bilan Passif au format "liste" avec REF (PA.. capitaux propres, QA.. dettes
+     * financières, RA.. passif circulant, SA.. trésorerie passif, ..Z pour les soldes).
+     *
+     * @param array<string, float> $passif rubriques de structureBilanPassifVide(), déjà alimentées
+     *
+     * @return array{lignes: list<array{ref: string, libelle: string, montant: float, type: string}>, totalPassif: float}
+     */
+    private function construireBilanPassif(array $passif): array
+    {
+        $lignes = [];
+
+        $section = function (array $rubriques, string $refTotal, string $libelleTotal) use ($passif, &$lignes): float {
+            $total = 0.0;
+
+            foreach ($rubriques as [$ref, $nom]) {
+                $total += $passif[$nom];
+                $lignes[] = ['ref' => $ref, 'libelle' => $nom, 'montant' => $passif[$nom], 'type' => 'ligne'];
+            }
+
+            // Formule affichée sous le titre du sous-total, comme pour le compte de résultat.
+            $formule = implode(' + ', array_column($rubriques, 0));
+            $lignes[] = ['ref' => $refTotal, 'libelle' => "$libelleTotal ($formule)", 'montant' => $total, 'type' => 'total'];
+
+            return $total;
+        };
+
+        $totalCapitauxPropres = $section([
+            ['PA', 'Capital'],
+            ['PB', 'Actionnaires capital non appelé'],
+            ['PC', "Primes d'apport, d'émission, de fusion"],
+            ['PD', 'Ecarts de réévaluation'],
+            ['PE', 'Réserves indisponibles'],
+            ['PF', 'Réserves libres'],
+            ['PG', 'Report à nouveau'],
+            ['PH', "Résultat en instance d'affectation"],
+            ['PI', "Résultat net de l'exercice"],
+            ['PJ', 'Provisions réglementées'],
+        ], 'PZ', 'TOTAL CAPITAUX PROPRES ET RESSOURCES ASSIMILEES');
+
+        $totalDettesFinancieres = $section([
+            ['QA', "Subventions d'investissement"],
+            ['QB', 'Emprunts et dettes financières'],
+            ['QC', 'Dettes de crédit-bail et contrats assimilés'],
+            ['QD', 'Provisions financières pour risques et charges'],
+        ], 'QZ', 'TOTAL DETTES FINANCIERES ET RESSOURCES ASSIMILEES');
+
+        $totalPassifCirculant = $section([
+            ['RA', 'Clients, avances reçues'],
+            ['RB', "Fournisseurs d'exploitation"],
+            ['RC', 'Dettes fiscales et sociales'],
+            ['RD', 'Autres dettes'],
+            ['RE', 'Risques provisionnés'],
+        ], 'RZ', 'TOTAL PASSIF CIRCULANT');
+
+        $totalTresoreriePassif = $section([
+            ['SA', "Banques, crédits d'escompte"],
+            ['SB', 'Banques, crédits de trésorerie et découvert'],
+        ], 'SZ', 'TOTAL TRESORERIE PASSIF');
+
+        $totalGeneral = $totalCapitauxPropres + $totalDettesFinancieres + $totalPassifCirculant + $totalTresoreriePassif;
+
+        $lignes[] = ['ref' => 'ZZ', 'libelle' => 'TOTAL GENERAL (PZ + QZ + RZ + SZ)', 'montant' => $totalGeneral, 'type' => 'total'];
+
+        foreach ($lignes as &$ligne) {
+            $ligne['montant'] = round($ligne['montant'], 2);
+        }
+        unset($ligne);
+
+        return ['lignes' => $lignes, 'totalPassif' => round($totalGeneral, 2)];
     }
 }

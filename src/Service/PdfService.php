@@ -29,8 +29,9 @@ class PdfService
             'report' => $report,
             'devise' => $settings->getDevise(),
             'logoBase64' => $this->logoEnBase64($settings->getLogoEntreprise()),
-            'lignesBilan' => $this->apparierLignes($report->getBilanActif(), $report->getBilanPassif()),
-            'lignesResultat' => $this->apparierLignes($report->getCompteCharges(), $report->getCompteProduits()),
+            'bilanActif' => $report->getBilanActif(),
+            'bilanPassif' => $report->getBilanPassif(),
+            'compteResultat' => $report->getCompteResultat(),
         ]);
 
         $options = new Options();
@@ -39,7 +40,8 @@ class PdfService
 
         $dompdf = new Dompdf($options);
         $dompdf->loadHtml($html);
-        $dompdf->setPaper('A4', 'portrait');
+        // Paysage : le Bilan Actif/Passif côte à côte compte 8 colonnes, trop serré en portrait.
+        $dompdf->setPaper('A4', 'landscape');
         $dompdf->render();
 
         return $dompdf->output();
@@ -73,34 +75,4 @@ class PdfService
         return sprintf('data:%s;base64,%s', $mime, base64_encode(file_get_contents($chemin)));
     }
 
-    /**
-     * Met en correspondance deux rubriques (ex: Actif/Passif) ligne par ligne,
-     * afin de les afficher côte à côte dans une seule table à plat (Dompdf gère
-     * mal les tables imbriquées avec des largeurs fixes).
-     *
-     * @return list<array{gaucheLibelle: ?string, gaucheMontant: ?float, gaucheTotal: bool, droiteLibelle: ?string, droiteMontant: ?float, droiteTotal: bool}>
-     */
-    private function apparierLignes(array $gauche, array $droite): array
-    {
-        $gaucheLibelles = array_keys($gauche);
-        $droiteLibelles = array_keys($droite);
-        $nombreLignes = max(count($gaucheLibelles), count($droiteLibelles));
-
-        $lignes = [];
-        for ($i = 0; $i < $nombreLignes; $i++) {
-            $libelleGauche = $gaucheLibelles[$i] ?? null;
-            $libelleDroite = $droiteLibelles[$i] ?? null;
-
-            $lignes[] = [
-                'gaucheLibelle' => $libelleGauche,
-                'gaucheMontant' => $libelleGauche !== null ? $gauche[$libelleGauche] : null,
-                'gaucheTotal' => $libelleGauche !== null && str_starts_with($libelleGauche, 'Total'),
-                'droiteLibelle' => $libelleDroite,
-                'droiteMontant' => $libelleDroite !== null ? $droite[$libelleDroite] : null,
-                'droiteTotal' => $libelleDroite !== null && str_starts_with($libelleDroite, 'Total'),
-            ];
-        }
-
-        return $lignes;
-    }
 }
